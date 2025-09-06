@@ -30,9 +30,6 @@ const LoginPage = () => {
 
 async function handleSubmit(event: React.FormEvent) {
   event.preventDefault();
-  setEmailError(null);
-  setPasswordError(null);
-  setError(null);
 
   const formData = new FormData(event.target as HTMLFormElement);
   const email = formData.get('email') as string;
