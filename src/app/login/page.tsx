@@ -102,7 +102,7 @@ const LoginPage = () => {
                 className={`bg-white rounded-md placeholder:text-[#777777] w-full h-full pl-10 pr-3 font-sans font-normal focus:outline-none
                   transition-[box-shadow] duration-300
                   ${emailError ? "ring-2 ring-red-500" : ""}
-                  focus:ring-2 focus:ring-secondary-darker` }
+                  focus:ring-2 focus:ring-my-secondary-darker` }
               />
             </div>
             <p className={`text-red-500 text-xs transition-all duration-300 overflow-hidden
@@ -126,7 +126,7 @@ const LoginPage = () => {
                 className={`bg-white rounded-md placeholder:text-[#777777] w-full h-full px-10 font-sans font-normal focus:outline-none
                   transition-[box-shadow] duration-300
                   ${passwordError ? "ring-2 ring-red-500" : ""}
-                  focus:ring-2 focus:ring-secondary-darker` }
+                  focus:ring-2 focus:ring-my-secondary-darker` }
               />
               <img
                 src={showPassword ? "/eye-off.svg" : "/eye-on.svg"}
@@ -148,7 +148,7 @@ const LoginPage = () => {
           <button
             type="submit"
             className='bg-background text-foreground rounded-md h-9 cursor-pointer w-xs xl:w-sm 
-            hover:bg-secondary-darker hover:text-background hover:font-medium transition-colors duration-200'
+            hover:bg-my-secondary-darker hover:text-background hover:font-medium transition-colors duration-200'
           >
             Sign in
           </button>
@@ -159,7 +159,7 @@ const LoginPage = () => {
           }
         </form>
       </div>
-      <p>I do not have a <span className='text-secondary'>Lernen</span> account. <a href='' className='text-secondary underline cursor-pointer'>Sign up</a></p>
+      <p>I do not have a <span className='text-my-secondary'>Lernen</span> account. <a href='' className='text-my-secondary underline cursor-pointer'>Sign up</a></p>
     </main>
   )
 }
