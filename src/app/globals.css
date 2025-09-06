@@ -21,12 +21,13 @@
   --font-inter: var(--font-inter);
 }
 
-@media (prefers-color-scheme: light) {
+/* no light and dark mode switch for now */
+/* @media (prefers-color-scheme: light) {
   :root {
     --background: #f5f5f5;
     --foreground: #0C0C0C;
   }
-}
+} */
 
 body {
   background: var(--background);
