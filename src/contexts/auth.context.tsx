@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import Cookies from 'js-cookie';
 import User from '../types/user';
 import axios, { AxiosError } from 'axios';
-import { clientEnv } from '@/env.client';
+import { clientEnv } from '../../env.client';
 import { useRouter } from 'next/navigation';
 
 const AuthContext = createContext<{
