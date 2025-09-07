@@ -118,7 +118,7 @@ async function handleSubmit(event: React.FormEvent) {
           <label className='flex flex-col gap-2 font-medium text-sm'>
             <div className='flex flex-row justify-between items-center font-sans'>
               <span>Password</span>
-              <a href="" className='relative md:text-black after:absolute after:left-0 after:-bottom-0.5 after:w-0 after:h-[1px] after:bg-background hover:after:w-full after:transition-all after:duration-500'>Forgot password?</a>
+              <a href="/forgot-password" className='relative md:text-black after:absolute after:left-0 after:-bottom-0.5 after:w-0 after:h-[1px] after:bg-background hover:after:w-full after:transition-all after:duration-500'>Forgot password?</a>
             </div>
             <div className='relative flex flex-row items-center h-9'>
               <svg className='absolute left-2.5 w-5' width="18" height="18" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
