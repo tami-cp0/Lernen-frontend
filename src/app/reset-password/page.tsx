@@ -2,9 +2,9 @@
 import { clientEnv } from '../../../env.client';
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState } from 'react';
 
-const ResetPasswordPage = () => {
+const ResetPasswordInner = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const togglePassword = () => {
@@ -312,4 +312,10 @@ const ResetPasswordPage = () => {
 	);
 };
 
-export default ResetPasswordPage;
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div></div>}>
+      <ResetPasswordInner />
+    </Suspense>
+  );
+}
