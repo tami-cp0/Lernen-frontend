@@ -91,10 +91,10 @@ const page = () => {
                     { step === 1 && <StepOne setStep={setStep} setField={setField} field={field}/>}
                     { step === 2 && <StepTwo setStep={setStep} preferences={preferences} setPreferences={setPreferences} isLoading={isLoading}/>}
                     { message && (
-                        <p className='text-center text-sm bg-primary/4 text-foreground w-full border-1 p-2 rounded-md border-primary'>{message}</p>
+                        <p className='text-center mt-10 text-sm bg-primary/4 text-foreground w-full border-1 p-2 rounded-md border-primary'>{message}</p>
                     ) }
                     { error && (
-                        <p className='text-center text-sm bg-red-700/4 text-foreground w-full border-1 p-2 rounded-md border-red-600'>{error}</p>
+                        <p className='text-center text-sm mt-10 bg-red-700/4 text-foreground w-full border-1 p-2 rounded-md border-red-600'>{error}</p>
                     ) }
                 </form>
             </section>
