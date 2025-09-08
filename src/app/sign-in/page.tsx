@@ -22,7 +22,7 @@ const Page = () => {
         const email = new FormData(event.target as HTMLFormElement).get('email') as string;
 
         try {
-            await axios.post(`${clientEnv.apiUrl}/api/v1/auth/magic-link`, { email });
+            await axios.post(`${clientEnv.apiUrl}/api/v1/auth/magic-link?provider=email`, { email });
             setMessage("Magic link sent! Please check your email.");
             setIsLoading(false);
         } catch (error: unknown) {
@@ -39,13 +39,13 @@ const Page = () => {
     <main className="relative w-screen h-screen flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
         <section className='z-2'>
             <div className='absolute top-5 left-5 md:top-10 md:left-10 flex items-center gap-3'>
-                <Image src="/lernen-logo.svg" alt="Lernen logo" className='w-6'/>
+                <Image src="/lernen-logo.svg" alt="Lernen logo" width={24} height={24}/>
                 <p className='text-xl'>Lernen</p>
             </div>
             <p className='absolute hidden left-10 bottom-10 md:block'>Lernen (ler‧nen) The Intelligent Learning Tech</p>
         </section>
         <section className='z-1 relative bg-secondary w-full md:w-[45%] flex flex-col items-center gap-10'>
-            <Image src="/socials.svg" alt="" className='absolute top-5 right-5  md:top-10 md:right-20'/>
+            <Image src="/socials.svg" alt="" className='absolute top-5 right-5  md:top-10 md:right-20' width={157} height={26}/>
             <section className='mt-40 w-[70%] md:w-[60%] flex flex-col gap-4 items-start'>
                 <h1 className='text-white text-2xl font-semibold mb-[-10]'>Sign in real quick</h1>
                 <p className='text-secondary-lighter mb-4'>use email magic link</p>
@@ -71,7 +71,7 @@ const Page = () => {
                     </label>
                     <Button disabled={value.trim() === ""}>
                         {isLoading ? <Loader2Icon className="h-4 w-4 animate-spin" /> : null}
-                        {isLoading ? 'Signing in...' : 'Sign in'}
+                        {isLoading ? 'Sending magic link' : 'Send magic link'}
                     </Button>
                     { message && (
                         <p className='text-center text-sm bg-primary/4 text-foreground w-full border-1 p-2 rounded-md border-primary'>{message}</p>
@@ -87,7 +87,7 @@ const Page = () => {
                     <div className="flex-grow border-t border-[#2e2e2e]"></div>
                 </div>
                 <Button variant={"outline"} className='w-full'>
-                    <Image src="/google.svg" alt="google icon" className='w-4'/>
+                    <Image src="/google.svg" alt="google icon" className='w-4' width={16} height={16}/>
                     Google - temporarily out of service
                 </Button>
             </section>

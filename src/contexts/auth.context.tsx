@@ -45,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })).data.data;
 
+      console.log('User data fetched:', userProfile);
       setUser(userProfile);
     } catch (error: unknown) {
       // try to refresh token first if 401 error, ensure we don't get into infinite loop
