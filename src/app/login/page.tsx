@@ -79,7 +79,7 @@ async function handleSubmit(event: React.FormEvent) {
 }
 
   return (
-    <main className='min-w-screen min-h-screen flex flex-col justify-center items-center md:gap-4'>
+    <main className="min-w-screen min-h-screen flex flex-col justify-center bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-right items-center md:gap-4">
       <div className='md:bg-foreground md:text-background rounded-3xl max-w-lg h-fit p-8 flex flex-col gap-3 transition-all duration-200'>
         <div className='flex flex-row items-center gap-3 justify-center'>
           <img src="/lernen-logo.svg" alt="" className='w-9'/>
