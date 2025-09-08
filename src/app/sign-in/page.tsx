@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Loader2Icon } from "lucide-react"
 import axios from 'axios';
 import { clientEnv } from '../../../env.client';
+import Image from 'next/image';
 
-const page = () => {
+const Page = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const [value, setValue] = useState("")
@@ -38,13 +39,13 @@ const page = () => {
     <main className="relative w-screen h-screen flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
         <section className='z-2'>
             <div className='absolute top-5 left-5 md:top-10 md:left-10 flex items-center gap-3'>
-                <img src="/lernen-logo.svg" alt="Lernen logo" className='w-6'/>
+                <Image src="/lernen-logo.svg" alt="Lernen logo" className='w-6'/>
                 <p className='text-xl'>Lernen</p>
             </div>
             <p className='absolute hidden left-10 bottom-10 md:block'>Lernen (ler‧nen) The Intelligent Learning Tech</p>
         </section>
         <section className='z-1 relative bg-secondary w-full md:w-[45%] flex flex-col items-center gap-10'>
-            <img src="/socials.svg" alt="" className='absolute top-5 right-5  md:top-10 md:right-20'/>
+            <Image src="/socials.svg" alt="" className='absolute top-5 right-5  md:top-10 md:right-20'/>
             <section className='mt-40 w-[70%] md:w-[60%] flex flex-col gap-4 items-start'>
                 <h1 className='text-white text-2xl font-semibold mb-[-10]'>Sign in real quick</h1>
                 <p className='text-secondary-lighter mb-4'>use email magic link</p>
@@ -79,14 +80,14 @@ const page = () => {
                         <p className='text-center text-sm bg-red-700/4 text-foreground w-full border-1 p-2 rounded-md border-red-600'>{error}</p>
                     ) }
                 </form>
-                <p className='text-sm w-full text-center text-secondary-lighter'>We'll send a magic link to your email</p>
+                <p className='text-sm w-full text-center text-secondary-lighter'>We&apos;ll send a magic link to your email</p>
                 <div className="flex items-center w-full">
                     <div className="flex-grow border-t border-[#2e2e2e]"></div>
                     <span className="mx-4 text-[#D7D7D7] text-xs">OR CONTINUE WITH</span>
                     <div className="flex-grow border-t border-[#2e2e2e]"></div>
                 </div>
                 <Button variant={"outline"} className='w-full'>
-                    <img src="/google.svg" alt="google icon" className='w-4'/>
+                    <Image src="/google.svg" alt="google icon" className='w-4'/>
                     Google - temporarily out of service
                 </Button>
             </section>
@@ -95,4 +96,4 @@ const page = () => {
   )
 }
 
-export default page
+export default Page
