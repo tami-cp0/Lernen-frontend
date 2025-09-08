@@ -3,19 +3,17 @@
 :root {
   --background: #0C0C0C;
   --foreground: #F5F5F5;
-  --my-primary: #272727;
-  --my-primary-lighter: #777777;
-  --my-secondary: #BCFD4C;
-  --my-secondary-darker: #99E11D;
+  --secondary: #151515;
+  --secondary-lighter: #777777;
+  --primary: #99E11D;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-my-primary: var(--my-primary);
-  --color-my-primary-lighter: var(--my-primary-lighter);
-  --color-my-secondary: var(--my-secondary);
-  --color-my-secondary-darker: var(--my-secondary-darker);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-secondary-lighter: var(--secondary-lighter);
   --font-sans: var(--font-ibm-plex-sans);
   --font-mono: var(--font-ibm-plex-mono);
   --font-inter: var(--font-inter);
