@@ -1,12 +1,13 @@
 'use client';
-import React, { FormEvent, useEffect, useState } from 'react';
+import React, { FormEvent, Suspense, useEffect, useState } from 'react';
 import axios from 'axios';
 import { clientEnv } from '../../../env.client';
 import StepOne from './stepOne';
 import StepTwo from './stepTwo';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 
-const page = () => {
+const OnboardingPage = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
@@ -16,22 +17,6 @@ const page = () => {
     const searchParams = useSearchParams();
 
     const email = searchParams.get('email');
-    const onboarded: boolean = searchParams.get('onboarded') === 'true';
-
-    const [isRedirecting, setIsRedirecting] = useState(false);
-    useEffect(() => {
-        if (onboarded) {
-            setIsRedirecting(true);
-            router.push('/');
-        }
-    }, [onboarded])
-
-    if (isRedirecting || onboarded) {
-        return (
-            // add loader later
-            <main className="w-screen h-screen bg-background"></main>
-        )
-    }
 
     const [step, setStep] = useState<number>(1);
 
@@ -40,6 +25,23 @@ const page = () => {
 
     // step two
     const [preferences, setPreferences] = useState<string[]>([])
+
+    const onboarded: boolean = searchParams.get('onboarded') === 'true';
+
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    useEffect(() => {
+        if (onboarded) {
+            setIsRedirecting(true);
+            router.push('/');
+        }
+    }, [onboarded, router]);
+
+    if (isRedirecting || onboarded) {
+        return (
+            // add loader later
+            <main className="w-screen h-screen bg-background"></main>
+        )
+    }
 
     async function handleSubmit(event: FormEvent) {
         event.preventDefault();
@@ -70,13 +72,13 @@ const page = () => {
     <main className="relative w-screen h-screen flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
         <section className='z-2'>
             <div className='absolute top-5 left-5 md:top-10 md:left-10 flex items-center gap-3'>
-                <img src="/lernen-logo.svg" alt="Lernen logo" className='w-6'/>
+                <Image src="/lernen-logo.svg" alt="Lernen logo" className='w-6'/>
                 <p className='text-xl'>Lernen</p>
             </div>
             <p className='absolute hidden left-10 bottom-10 md:block'>Lernen (ler‧nen) The Intelligent Learning Tech</p>
         </section>
         <section className='z-1 relative bg-secondary w-full md:w-[45%] flex flex-col items-center gap-10'>
-            <img src="/socials.svg" alt="" className='absolute top-5 right-5  md:top-10 md:right-20'/>
+            <Image src="/socials.svg" alt="" className='absolute top-5 right-5  md:top-10 md:right-20'/>
             <section className='mt-40 w-[70%] md:w-[60%] flex flex-col gap-4 items-start'>
                 <h1 className='text-foreground text-2xl font-semibold mb-[-10]'>{step === 1 ? "Short Onboarding" : "What interests you most?"}</h1>
                 <p className='text-[#9e9e9e] mb-4'>
@@ -103,4 +105,10 @@ const page = () => {
   )
 }
 
-export default page
+export default function Page() {
+  return (
+    <Suspense fallback={<p></p>}>
+        <OnboardingPage />
+    </Suspense>
+  );
+}
