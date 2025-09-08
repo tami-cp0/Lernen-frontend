@@ -36,9 +36,9 @@ export default function RootLayout({
       <body
         className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`} // removed antialised
       >
-        <AuthProvider>
+        {/* <AuthProvider> */}
           {children}
-        </AuthProvider>
+        {/* </AuthProvider> */}
       </body>
     </html>
   );
