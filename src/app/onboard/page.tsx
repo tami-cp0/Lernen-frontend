@@ -19,6 +19,7 @@ const OnboardingPage = () => {
     const searchParams = useSearchParams();
 
     const email = searchParams.get('email');
+    const token = searchParams.get('token');
 
     const [step, setStep] = useState<number>(1);
 
@@ -28,38 +29,55 @@ const OnboardingPage = () => {
     // step two
     const [preferences, setPreferences] = useState<string[]>([])
 
-    const token = searchParams.get('token');
-
     const { login } = useAuthContext();
 
     const [isVerifying, setIsVerifying] = useState(true); // Only verify if token exists
 
-    const accessToken = Cookies.get('accessToken');
-    const refreshToken = Cookies.get('refreshToken');
-    if (accessToken && refreshToken) {
-        console.log("Already logged in, redirecting to home...");
-        router.push('/');
-    }
-
     useEffect(() => {
         async function verifyToken() {
+            // Check if already logged in
+            const accessToken = Cookies.get('accessToken');
+            const refreshToken = Cookies.get('refreshToken');
+            
+            if (accessToken && refreshToken) {
+                console.log("Already logged in, redirecting to home...");
+                router.push('/');
+                return;
+            }
+
             try {
                 if (!token) {
-                    router.push('/sign-in');
+                    console.log("No token found, staying on onboarding page");
+                    setIsVerifying(false);
                     return;
                 }
-                const response = (await axios.post(`${clientEnv.apiUrl}/api/v1/auth/magic-link/verify`, { token })).data;
-                login(response.data.accessToken, response.data.refreshToken);
+
+                console.log("Verifying token...");
+                const response = await axios.post(`${clientEnv.apiUrl}/api/v1/auth/magic-link/verify`, { token });
+
+                login(response.data.data.accessToken, response.data.data.refreshToken);
+                console.log("Token verified successfully, redirecting to home...");
+                router.push('/');
                 
-                 router.push('/');
             } catch (error) {
+                console.error('Token verification failed:', error);
+                
                 if (axios.isAxiosError(error)) {
-                    if (error?.response?.data.message.includes('link')) {
+                    const errorMessage = error.response?.data?.message || '';
+                    
+                    // Fix the error checking logic
+                    if (errorMessage.includes('expired') || 
+                        errorMessage.includes('invalid') || 
+                        errorMessage.includes('used')) {
+                        console.log("Invalid/expired token, redirecting to sign-in...");
                         router.push('/sign-in');
+                        return;
                     }
                 }
-                console.error('Token verification failed:', error);
+                
+                // For other errors, stay on onboarding page
                 setIsVerifying(false);
+                setError('Token verification failed. Please try again.');
             }
         }
         verifyToken();
