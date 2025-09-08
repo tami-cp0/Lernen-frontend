@@ -1,11 +1,11 @@
 'use client';
-import React, { useState } from 'react'
+import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2Icon } from 'lucide-react'
 
-const stepTwo = ({ setStep, preferences, setPreferences, isLoading }: { 
+const StepTwo = ({ setStep, preferences, setPreferences, isLoading }: { 
     setStep: React.Dispatch<React.SetStateAction<number>>,
     preferences: string[],
     setPreferences: React.Dispatch<React.SetStateAction<string[]>>,
@@ -54,4 +54,4 @@ const stepTwo = ({ setStep, preferences, setPreferences, isLoading }: {
     )
 }
 
-export default stepTwo
+export default StepTwo

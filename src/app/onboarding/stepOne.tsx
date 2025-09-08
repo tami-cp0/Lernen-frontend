@@ -1,8 +1,8 @@
 'use client'
 import { Button } from '@/components/ui/button'
-import React, { useState } from 'react'
+import React from 'react'
 
-const stepOne = ({ setStep, field, setField }: {
+const StepOne = ({ setStep, field, setField }: {
     setStep: React.Dispatch<React.SetStateAction<number>>,
     field: { firstName: string, lastName: string, educationLevel: string },
     setField: React.Dispatch<React.SetStateAction<{ firstName: string, lastName: string, educationLevel: string }>>
@@ -62,4 +62,4 @@ const stepOne = ({ setStep, field, setField }: {
   )
 }
 
-export default stepOne
+export default StepOne
