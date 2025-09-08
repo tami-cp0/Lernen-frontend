@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthContext } from '@/contexts/auth.context';
 import Cookies from 'js-cookie';
+import { Console } from 'console';
 
 const OnboardingPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +65,12 @@ const OnboardingPage = () => {
                 
                 if (axios.isAxiosError(error)) {
                     const errorMessage = error.response?.data?.message || '';
+
+                    if (error.response?.data?.statusCode === 403) {
+                        console.log(errorMessage);
+                        setIsVerifying(false);
+                        return;
+                    }
                     
                     // Fix the error checking logic
                     if (errorMessage.includes('expired') || 
