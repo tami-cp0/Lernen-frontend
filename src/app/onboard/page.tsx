@@ -91,7 +91,7 @@ const OnboardingPage = () => {
     }, [router, login, token]);
 
     if (isVerifying) {
-        return <div className="w-screen h-screen"></div>;
+        return <div className="w-screen h-screen bg-secondary"></div>;
     }
 
     async function handleSubmit(event: FormEvent) {
