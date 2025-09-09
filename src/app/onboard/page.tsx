@@ -102,7 +102,7 @@ const OnboardingPage = () => {
 
 
         try {
-            await axios.post(`${clientEnv.apiUrl}/api/v1/auth/onboard`, { ...field, preferences, email });
+            await axios.put(`${clientEnv.apiUrl}/api/v1/auth/onboard`, { ...field, preferences, email });
             setMessage("Onboarding complete! Redirecting...");
             setIsLoading(false);
 
