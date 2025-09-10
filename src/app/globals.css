@@ -39,3 +39,33 @@ input[type="password"]::-webkit-textfield-decoration-container {
   display: none;
 }
 
+@layer utilities {
+  /* hidden scrollbar (default) */
+  .hidden-scrollbar {
+    scrollbar-width: none;
+    scrollbar-color: transparent transparent;
+  }
+  .hidden-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* custom scrollbar (md and up) */
+  @media (min-width: 768px) {
+    .md\:custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: #404040 transparent;
+    }
+    .md\:custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .md\:custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .md\:custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #404040;
+      border-radius: 10px;
+      border: 2px solid transparent;
+    }
+  }
+}
