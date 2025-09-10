@@ -47,7 +47,7 @@ const Page = () => {
         <section className='z-1 relative bg-secondary w-full md:w-[45%] flex flex-col items-center gap-10'>
             <Image src="/socials.svg" alt="" className='absolute top-5 right-5  md:top-10 md:right-20' width={157} height={26}/>
             <section className='mt-40 w-[70%] md:w-[60%] flex flex-col gap-4 items-start'>
-                <h1 className='text-white text-2xl font-semibold mb-[-10]'>Sign in real quick</h1>
+                <h1 className='text-white text-2xl font-semibold mb-[-10]'>Authenticate to your account</h1>
                 <p className='text-secondary-lighter mb-4'>use email magic link</p>
                 <form action="" className='w-full flex flex-col gap-4' onSubmit={handleSubmit}>
                     <label className='flex flex-col gap-1 w-full font-sans text-sm font-medium'>
