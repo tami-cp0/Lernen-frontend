@@ -5,11 +5,12 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2Icon } from 'lucide-react'
 
-const StepTwo = ({ setStep, preferences, setPreferences, isLoading }: { 
+const StepTwo = ({ setStep, preferences, setPreferences, isLoading, email }: { 
     setStep: React.Dispatch<React.SetStateAction<number>>,
     preferences: string[],
     setPreferences: React.Dispatch<React.SetStateAction<string[]>>,
-    isLoading: boolean
+    isLoading: boolean,
+    email: string | null
 }) => {
     const canProceed = preferences.length > 0;
 
@@ -45,7 +46,7 @@ const StepTwo = ({ setStep, preferences, setPreferences, isLoading }: {
                 <Button type='button' variant={'outline'} className='w-[30%] self-start' onClick={() => setStep((prevStep) => prevStep - 1)}>
                     Back
                 </Button>
-                <Button type='submit' className='w-[30%] self-end' disabled={!canProceed}>
+                <Button type='submit' className='w-[30%] self-end' disabled={!canProceed && !email}>
                     {isLoading ? <Loader2Icon className="h-4 w-4 animate-spin" /> : null}
                     {isLoading ? '' : 'Continue'}
                 </Button>
