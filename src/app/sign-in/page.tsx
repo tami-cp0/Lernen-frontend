@@ -5,6 +5,7 @@ import { Loader2Icon } from "lucide-react"
 import axios from 'axios';
 import { clientEnv } from '../../../env.client';
 import Image from 'next/image';
+import Script from 'next/script';;
 
 const Page = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -35,8 +36,18 @@ const Page = () => {
             console.error('Magic link request failed:', error);
         }
     }
+
   return (
     <main className="relative w-screen h-screen flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
+        {/* Google Sign-In configuration */}
+        <Script src="https://accounts.google.com/gsi/client" strategy='afterInteractive' />
+        <div
+            id="g_id_onload"
+            data-auto_prompt="false"
+            data-callback="handleCredentialResponse"
+            data-client_id="1079450784615-m3uumaos7d2f4q3mr27p34vt086f5kn7.apps.googleusercontent.com"
+        />
+
         <section className='z-2'>
             <div className='absolute top-5 left-5 md:top-10 md:left-10 flex items-center gap-3'>
                 <Image src="/lernen-logo.svg" alt="Lernen logo" width={24} height={24}/>
@@ -90,6 +101,7 @@ const Page = () => {
                     <Image src="/google.svg" alt="google icon" className='w-4' width={16} height={16}/>
                     Google - temporarily out of service
                 </Button>
+                <div className="g_id_signin w-full flex justify-center" data-text="signup_with" data-size="medium" data-width="100%"></div>
             </section>
         </section>
     </main>
