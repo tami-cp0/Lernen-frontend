@@ -1,11 +1,17 @@
 'use client';
-import React, { FormEvent, useState } from 'react';
+import React, { FormEvent, useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2Icon } from "lucide-react"
 import axios from 'axios';
 import { clientEnv } from '../../../env.client';
 import Image from 'next/image';
-import Script from 'next/script';;
+import Script from 'next/script';
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 const Page = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -37,16 +43,44 @@ const Page = () => {
         }
     }
 
+    const googleCodeClient = useRef<any>(null);
+
+    const initGoogle = useCallback(() => {
+    if (!window.google?.accounts?.oauth2) return;
+    googleCodeClient.current = window.google.accounts.oauth2.initCodeClient({
+        client_id: clientEnv.googleClientId || '',
+        scope: 'openid email profile',
+        ux_mode: 'popup',
+        callback: async (resp: { code?: string; error?: string }) => {
+            try {
+                console.log(resp);
+                await axios.post(`${clientEnv.apiUrl}/api/v1/auth/google`, { code: resp.code });
+                // e.g. redirect or show success
+                setMessage('Signed in with Google');
+            } catch (e: unknown) {
+                if (axios.isAxiosError(e)) {
+                    setError(e.response?.data?.message || e.message || 'Google sign-in failed');
+                } else {
+                    setError('Google sign-in failed');
+                }
+            }
+        },
+    });
+    }, []);
+
+    const handleGoogleClick = () => {
+        if (!window.google?.accounts?.oauth2) {
+            setError('Google SDK not loaded. Please try again.');
+            return;
+        }
+        if (!googleCodeClient.current) initGoogle();
+        googleCodeClient.current.requestCode();
+    };
+
   return (
     <main className="relative w-screen h-screen flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
         {/* Google Sign-In configuration */}
-        <Script src="https://accounts.google.com/gsi/client" strategy='afterInteractive' />
-        <div
-            id="g_id_onload"
-            data-auto_prompt="false"
-            data-callback="handleCredentialResponse"
-            data-client_id="1079450784615-m3uumaos7d2f4q3mr27p34vt086f5kn7.apps.googleusercontent.com"
-        />
+        <Script src="https://accounts.google.com/gsi/client" strategy='afterInteractive' onLoad={initGoogle} />
 
         <section className='z-2'>
             <div className='absolute top-5 left-5 md:top-10 md:left-10 flex items-center gap-3'>
@@ -97,11 +131,10 @@ const Page = () => {
                     <span className="mx-4 text-[#D7D7D7] text-xs">OR CONTINUE WITH</span>
                     <div className="flex-grow border-t border-[#2e2e2e]"></div>
                 </div>
-                <Button variant={"outline"} className='w-full'>
+                <Button variant={"outline"} className='w-full' onClick={handleGoogleClick}>
                     <Image src="/google.svg" alt="google icon" className='w-4' width={16} height={16}/>
-                    Google - temporarily out of service
+                    Google
                 </Button>
-                <div className="g_id_signin w-full flex justify-center" data-text="signup_with" data-size="medium" data-width="100%"></div>
             </section>
         </section>
     </main>
