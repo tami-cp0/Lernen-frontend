@@ -9,6 +9,7 @@ import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/auth.context';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
   interface Window {
     google: any;
