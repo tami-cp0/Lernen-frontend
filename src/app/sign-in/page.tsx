@@ -6,6 +6,8 @@ import axios from 'axios';
 import { clientEnv } from '../../../env.client';
 import Image from 'next/image';
 import Script from 'next/script';
+import { useRouter } from 'next/navigation';
+import { useAuthContext } from '@/contexts/auth.context';
 
 declare global {
   interface Window {
@@ -14,6 +16,9 @@ declare global {
 }
 
 const Page = () => {
+    const { login } = useAuthContext();
+
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
 
     const [value, setValue] = useState("")
@@ -46,29 +51,50 @@ const Page = () => {
     const googleCodeClient = useRef<any>(null);
 
     const initGoogle = useCallback(() => {
-    if (!window.google?.accounts?.oauth2) return;
-    googleCodeClient.current = window.google.accounts.oauth2.initCodeClient({
-        client_id: clientEnv.googleClientId || '',
-        scope: 'openid email profile',
-        ux_mode: 'popup',
-        callback: async (resp: { code?: string; error?: string }) => {
-            try {
-                console.log(resp);
-                await axios.post(`${clientEnv.apiUrl}/api/v1/auth/google`, { code: resp.code });
-                // e.g. redirect or show success
-                setMessage('Signed in with Google');
-            } catch (e: unknown) {
-                if (axios.isAxiosError(e)) {
-                    setError(e.response?.data?.message || e.message || 'Google sign-in failed');
-                } else {
-                    setError('Google sign-in failed');
+        if (!window.google?.accounts?.oauth2) return;
+        googleCodeClient.current = window.google.accounts.oauth2.initCodeClient({
+            client_id: clientEnv.googleClientId || '',
+            scope: 'openid email profile',
+            ux_mode: 'popup',
+            redirect_uri: 'postmessage',
+            callback: async (res: { code?: string; error?: string }) => {
+                try {
+                    console.log(res);
+                    const response: {
+                        message: string;
+                        data: {
+                            onboarded: boolean; accessToken?: string; refreshToken?: string;
+                            token?: string;
+                        }
+                    } = (await axios.post(`${clientEnv.apiUrl}/api/v1/auth/google/callback`,
+                        { code: res.code }
+                    )).data;
+
+                    if (response.data?.onboarded) {
+                        login(response.data.accessToken!, response.data.refreshToken!);
+
+                        router.replace('/chat/new');
+                        return;
+                    } else {
+                        router.replace(`/onboard?token=${encodeURIComponent(response.data.token as string)}`);
+                        // router.replace(`/onboard?token=${response.data.token}`);
+                        return;
+                    }
+                } catch (e: unknown) {
+                    if (axios.isAxiosError(e)) {
+                        setError(e.response?.data?.message || e.message || 'Google authentication failed');
+                    } else {
+                        setError('Google authentication failed');
+                    }
                 }
-            }
-        },
-    });
-    }, []);
+            },
+        });
+    }, [login, router]);
 
     const handleGoogleClick = () => {
+        setError(null);
+        setMessage(null);
+        
         if (!window.google?.accounts?.oauth2) {
             setError('Google SDK not loaded. Please try again.');
             return;
@@ -80,7 +106,11 @@ const Page = () => {
   return (
     <main className="relative w-screen h-screen flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
         {/* Google Sign-In configuration */}
-        <Script src="https://accounts.google.com/gsi/client" strategy='afterInteractive' onLoad={initGoogle} />
+        <Script
+            src="https://accounts.google.com/gsi/client"
+            strategy='afterInteractive'
+            onLoad={initGoogle}
+        />
 
         <section className='z-2'>
             <div className='absolute top-5 left-5 md:top-10 md:left-10 flex items-center gap-3'>
