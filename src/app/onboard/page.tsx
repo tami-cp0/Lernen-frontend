@@ -1,5 +1,5 @@
 'use client';
-import React, { FormEvent, Suspense, useEffect, useState } from 'react';
+import React, { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { clientEnv } from '../../../env.client';
 import StepOne from './stepOne';
@@ -19,7 +19,6 @@ const OnboardingPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const token = searchParams.get('token');
 
     const [step, setStep] = useState<number>(1);
 
@@ -36,7 +35,13 @@ const OnboardingPage = () => {
     const [id, setId] = useState<string | null>(null);
     const [provider, setProvider] = useState<string | null>(null);
 
+    const [token, setToken] = useState<string>(searchParams.get('token') || '');
+
+    // prevent double execution of useEffect in Strict Mode
+    const didRun = useRef(false);
     useEffect(() => {
+        if (didRun.current) return;
+        didRun.current = true;
 
         async function verifyToken() {
             // Check if already logged in
@@ -59,7 +64,7 @@ const OnboardingPage = () => {
                 const response: {
                     message: string;
                     data: {
-                        accessToken?: string; refreshToken?: string; provider?: 'google' | 'email';
+                        accessToken?: string; refreshToken?: string; provider?: 'google' | 'email'; token?: string;
                         onboarded?: boolean; id?: string; names?: { firstName: string; lastName: string; };
                     }
                 } = (await axios.post(`${clientEnv.apiUrl}/api/v1/auth/verify-token`, { token })).data;
@@ -72,6 +77,7 @@ const OnboardingPage = () => {
                     });
                     setId(response.data.id || null);
                     setProvider(response.data.provider!);
+                    setToken(response.data.token!);
                     setIsVerifying(false);
                     return;
                 }
@@ -119,7 +125,7 @@ const OnboardingPage = () => {
             const response: {
                 message: string;
                 data: { accessToken: string; refreshToken: string; }
-            } = (await axios.put(`${clientEnv.apiUrl}/api/v1/auth/onboard?provider=${provider}`, { ...field, preferences, id })).data;
+            } = (await axios.put(`${clientEnv.apiUrl}/api/v1/auth/onboard?provider=${provider}`, { ...field, preferences, id, token })).data;
 
             login(response.data.accessToken, response.data.refreshToken);
             setIsLoading(false);
@@ -136,7 +142,6 @@ const OnboardingPage = () => {
             console.error('Magic link request failed:', error);
         }
     }
-
 
   return (
     <main className="relative w-full min-h-screen [@media(min-height:768px)]:h-screen flex justify-end bg-secondary md:bg-[url('/Abstract-Ripple-Effect.png')] md:bg-cover md:bg-center">
