@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthContext } from '@/contexts/auth.context';
 import Cookies from 'js-cookie';
+import { Loader2Icon } from 'lucide-react';
 
 const OnboardingPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -18,7 +19,6 @@ const OnboardingPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const email = searchParams.get('email');
     const token = searchParams.get('token');
 
     const [step, setStep] = useState<number>(1);
@@ -33,7 +33,11 @@ const OnboardingPage = () => {
 
     const [isVerifying, setIsVerifying] = useState(true); // Only verify if token exists
 
+    const [id, setId] = useState<string | null>(null);
+    const [provider, setProvider] = useState<string | null>(null);
+
     useEffect(() => {
+
         async function verifyToken() {
             // Check if already logged in
             const accessToken = Cookies.get('accessToken');
@@ -41,44 +45,49 @@ const OnboardingPage = () => {
             
             if (accessToken && refreshToken) {
                 console.log("Already signed in, redirecting to home...");
-                router.push('/chat/new');
+                router.replace('/chat/new');
                 return;
             }
 
             try {
                 if (!token) {
-                    console.log("No token found, staying on onboarding page");
-                    setIsVerifying(false);
+                    router.replace('/sign-in');
                     return;
                 }
 
                 console.log("Verifying token...");
-                const response = await axios.post(`${clientEnv.apiUrl}/api/v1/auth/magic-link/verify`, { token });
+                const response: {
+                    message: string;
+                    data: {
+                        accessToken?: string; refreshToken?: string; provider?: 'google' | 'email';
+                        onboarded?: boolean; id?: string; names?: { firstName: string; lastName: string; };
+                    }
+                } = (await axios.post(`${clientEnv.apiUrl}/api/v1/auth/verify-token`, { token })).data;
 
-                login(response.data.data.accessToken, response.data.data.refreshToken);
+                if (!response.data.onboarded) {
+                    setField({
+                        firstName: response.data.names?.firstName || '',
+                        lastName: response.data.names?.lastName || '',
+                        educationLevel: ''
+                    });
+                    setId(response.data.id || null);
+                    setProvider(response.data.provider!);
+                    setIsVerifying(false);
+                    return;
+                }
+
+                // If already onboarded, log in and redirect to home
+                login(response.data.accessToken!, response.data.refreshToken!);
                 console.log("Token verified successfully, redirecting to home...");
-                router.push('/chat/new');
-                
+                router.replace('/chat/new');
+                return;
             } catch (error) {
                 console.error('Token verification failed:', error);
                 
                 if (axios.isAxiosError(error)) {
-                    const errorMessage = error.response?.data?.message || '';
-
-                    if (error.response?.data?.statusCode === 403) {
-                        console.log(errorMessage);
-                        setIsVerifying(false);
-                        return;
-                    }
-                    
-                    // Fix the error checking logic
-                    if (errorMessage.includes('expired') || 
-                        errorMessage.includes('invalid') || 
-                        errorMessage.includes('used')) {
-                        console.log("Invalid/expired token, redirecting to sign-in...");
-                        router.push('/sign-in');
-                        return;
-                    }
+                    console.log("Invalid/expired/used token, redirecting to sign-in...");
+                    router.replace('/sign-in');
+                    return;
                 }
                 
                 // For other errors, stay on onboarding page
@@ -86,11 +95,17 @@ const OnboardingPage = () => {
                 setError('Token verification failed. Please try again.');
             }
         }
+
         verifyToken();
+
     }, [router, login, token]);
 
     if (isVerifying) {
-        return <div className="w-screen h-screen bg-secondary"></div>;
+        return (
+            <div className="w-screen h-screen bg-secondary flex items-center justify-center">
+                <Loader2Icon className="h-4 w-4 animate-spin" />
+            </div>
+        );
     }
 
     async function handleSubmit(event: FormEvent) {
@@ -101,11 +116,16 @@ const OnboardingPage = () => {
 
 
         try {
-            await axios.put(`${clientEnv.apiUrl}/api/v1/auth/onboard`, { ...field, preferences, email });
-            // setMessage("Onboarding complete! Redirecting...");
+            const response: {
+                message: string;
+                data: { accessToken: string; refreshToken: string; }
+            } = (await axios.put(`${clientEnv.apiUrl}/api/v1/auth/onboard?provider=${provider}`, { ...field, preferences, id })).data;
+
+            login(response.data.accessToken, response.data.refreshToken);
             setIsLoading(false);
 
-            router.push('/chat/new');
+            router.replace('/chat/new');
+            return;
         } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
                 setError(error.response?.data?.message || error.message || 'Something went wrong');
@@ -141,7 +161,7 @@ const OnboardingPage = () => {
                 <p className='w-full text-center text-sm'>Step {step} of 2</p>
                 <form action="" className='w-full' onSubmit={handleSubmit}>
                     { step === 1 && <StepOne setStep={setStep} setField={setField} field={field}/>}
-                    { step === 2 && <StepTwo setStep={setStep} preferences={preferences} setPreferences={setPreferences} isLoading={isLoading} email={email}/>}
+                    { step === 2 && <StepTwo setStep={setStep} preferences={preferences} setPreferences={setPreferences} isLoading={isLoading} id={id}/>}
                     { message && (
                         <p className='text-center mt-10 text-sm bg-primary/4 text-foreground w-full border-1 p-2 rounded-md border-primary'>{message}</p>
                     ) }
