@@ -21,7 +21,6 @@ const Page = () => {
 
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
-    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
     const [value, setValue] = useState("")
     const [error, setError] = useState<string | null>(null);
@@ -61,16 +60,7 @@ const Page = () => {
             redirect_uri: 'postmessage',
             callback: async (res: { code?: string; error?: string }) => {
                 try {
-                    // Handle user cancelling/closing the Google popup
-                    if (res?.error) {
-                        if (res.error === 'popup_closed_by_user' || res.error === 'access_denied') {
-                            setIsGoogleLoading(false);
-                        } else {
-                            setIsGoogleLoading(false);
-                            setError(`Google sign-in failed: ${res.error}`);
-                        }
-                        return;
-                    }
+                    console.log(res);
                     const response: {
                         message: string;
                         data: {
@@ -88,11 +78,9 @@ const Page = () => {
                         return;
                     } else {
                         router.replace(`/onboard?token=${encodeURIComponent(response.data.token as string)}`);
-                        // router.replace(`/onboard?token=${response.data.token}`);
                         return;
                     }
                 } catch (e: unknown) {
-                    setIsGoogleLoading(false);
                     if (axios.isAxiosError(e)) {
                         setError(e.response?.data?.message || e.message || 'Google authentication failed');
                     } else {
@@ -104,7 +92,6 @@ const Page = () => {
     }, [login, router]);
 
     const handleGoogleClick = () => {
-        setIsGoogleLoading(true);
         setError(null);
         setMessage(null);
         
@@ -174,11 +161,8 @@ const Page = () => {
                     <span className="mx-4 text-[#D7D7D7] text-xs">OR CONTINUE WITH</span>
                     <div className="flex-grow border-t border-[#2e2e2e]"></div>
                 </div>
-                <Button variant={"outline"} className='w-full' onClick={handleGoogleClick} disabled={isGoogleLoading}>
-                    {isGoogleLoading 
-                        ? <Loader2Icon className="h-4 w-4 animate-spin" /> 
-                        : <Image src="/google.svg" alt="google icon" width={16} height={16} />
-                    }
+                <Button variant={"outline"} className='w-full' onClick={handleGoogleClick}>
+                    <Image src="/google.svg" alt="google icon" className='w-4' width={16} height={16}/>
                     Google
                 </Button>
             </section>
