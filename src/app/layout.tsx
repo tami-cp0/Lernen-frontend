@@ -1,48 +1,47 @@
-import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Inter } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "../contexts/auth.context";
+import type { Metadata } from 'next';
+import { IBM_Plex_Mono, IBM_Plex_Sans, Inter } from 'next/font/google';
+import './globals.css';
 
 export const ibmPlexSans = IBM_Plex_Sans({
-  variable: "--font-ibm-plex-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+	variable: '--font-ibm-plex-sans',
+	subsets: ['latin'],
+	weight: ['400', '500', '600', '700'],
 });
 
 export const ibmPlexMono = IBM_Plex_Mono({
-  variable: "--font-ibm-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+	variable: '--font-ibm-plex-mono',
+	subsets: ['latin'],
+	weight: ['400', '500', '600', '700'],
 });
 
 export const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-})
+	variable: '--font-inter',
+	subsets: ['latin'],
+	weight: ['400', '500', '600', '700'],
+});
 
 export const metadata: Metadata = {
-  title: "Lernen",
-  icons: {
-    icon: "/favicon.svg",
-  },
-  description: "The intelligent learning tech",
+	title: 'Lernen',
+	icons: {
+		icon: '/favicon.svg',
+	},
+	description: 'The intelligent learning tech',
 };
 
 export default function RootLayout({
-  children,
+	children,
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en">
-      <body
-        className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`} // removed antialised
-      >
-        {/* <AuthProvider> */}
-          {children}
-        {/* </AuthProvider> */}
-      </body>
-    </html>
-  );
+	return (
+		<html lang="en">
+			<body
+				className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`} // removed antialised
+			>
+				{/* <AuthProvider> */}
+				{children}
+				{/* </AuthProvider> */}
+			</body>
+		</html>
+	);
 }
