@@ -56,7 +56,9 @@ export default function Sidebar() {
 	const [chats, setChats] = useState<Chat[]>([]);
 	const [user, setUser] = useState<User | null>(null);
 	const [documents, setDocuments] = useState<Document[]>([]);
-	const [uploadingFiles, setUploadingFiles] = useState<string[]>([]);
+	const [uploadingFiles, setUploadingFiles] = useState<
+		{ fileName: string; documentId?: string }[]
+	>([]);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	// Fetch chats and user data on mount
@@ -169,33 +171,31 @@ export default function Sidebar() {
 		const chatId = pathname?.match(/\/chat\/([^\/]+)/)?.[1];
 		if (!chatId) return;
 
-		// Optimistically remove from UI first
-		setDocuments((prev) => prev.filter((doc) => doc.id !== fileId));
-
 		try {
+			// Call API first
 			await apiRequest(`chats/${chatId}/remove-document`, 'DELETE', {
 				documentId: fileId,
 			});
+
+			// Only remove from UI after successful API response
+			setDocuments((prev) => prev.filter((doc) => doc.id !== fileId));
+
+			// Also remove from selected docs if it was selected
+			if (selectedDocs.includes(fileId)) {
+				toggleDoc(fileId);
+			}
+
+			toast.success('Document removed');
 		} catch (error) {
 			console.error('Error removing file:', error);
 			toast.error('Failed to remove file');
-
-			// Refresh documents list on error to restore UI state
-			try {
-				const data = await apiRequest<{
-					data: {
-						documents: Document[];
-					};
-				}>(`chats/${chatId}/messages`);
-				setDocuments(data.data.documents || []);
-			} catch (refreshError) {
-				console.error('Error refreshing documents:', refreshError);
-			}
 		}
 	}
 
 	function handleOpenFile(fileId: string, fileName: string) {
-		toggleFile({ fileId, fileName });
+		const chatId = pathname?.match(/\/chat\/([^\/]+)/)?.[1];
+		if (!chatId) return;
+		toggleFile({ fileId, fileName, chatId });
 	}
 
 	const handleFileUpload = async (
@@ -247,7 +247,7 @@ export default function Sidebar() {
 			}
 
 			// Add to uploading state
-			setUploadingFiles((prev) => [...prev, file.name]);
+			setUploadingFiles((prev) => [...prev, { fileName: file.name }]);
 
 			try {
 				const formData = new FormData();
@@ -272,6 +272,19 @@ export default function Sidebar() {
 					response.successfulUploads &&
 					response.successfulUploads.length > 0
 				) {
+					// Update uploading state with document ID
+					setUploadingFiles((prev) =>
+						prev.map((f) =>
+							f.fileName === file.name
+								? {
+										...f,
+										documentId:
+											response.successfulUploads[0].id,
+								  }
+								: f
+						)
+					);
+
 					// Refresh documents list
 					const data = await apiRequest<{
 						data: {
@@ -300,13 +313,13 @@ export default function Sidebar() {
 						);
 					});
 				}
-			} catch (error: any) {
+			} catch (error) {
 				console.error(`Error uploading ${file.name}:`, error);
 				toast.error('Failed to upload files');
 			} finally {
 				// Remove from uploading state
 				setUploadingFiles((prev) =>
-					prev.filter((name) => name !== file.name)
+					prev.filter((f) => f.fileName !== file.name)
 				);
 			}
 		}
@@ -426,22 +439,90 @@ export default function Sidebar() {
 						<Plus color="white" strokeWidth={2} className="h-4" />
 						Add sources
 					</div>
-					{uploadingFiles.map((fileName) => (
+					{uploadingFiles.map((fileInfo) => (
 						<div
-							key={fileName}
+							key={fileInfo.fileName}
 							className="flex flex-row h-fit w-full rounded-md justify-start items-center gap-3 bg-[#252525] p-0.5 px-2"
 						>
 							<div className="w-4 h-4 flex items-center justify-center">
 								<LoaderCircle className="size-4 animate-spin text-primary" />
 							</div>
 							<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
-								{fileName?.split('.')[0] || fileName}
+								{fileInfo.fileName?.split('.')[0] ||
+									fileInfo.fileName}
 							</p>
 							<Button
 								variant={'ghost'}
 								size={'sm'}
-								className="text-red-500/30 opacity-50 cursor-not-allowed p-0!"
-								disabled
+								className="text-red-500/30 hover:text-red-500 cursor-pointer p-0!"
+								onClick={async () => {
+									// If document has been uploaded and has an ID, call API to remove it
+									if (fileInfo.documentId) {
+										const chatId =
+											pathname?.match(
+												/\/chat\/([^\/]+)/
+											)?.[1];
+										if (!chatId) return;
+
+										try {
+											await apiRequest(
+												`chats/${chatId}/remove-document`,
+												'DELETE',
+												{
+													documentId:
+														fileInfo.documentId,
+												}
+											);
+
+											// Remove from uploading state after successful API call
+											setUploadingFiles((prev) =>
+												prev.filter(
+													(f) =>
+														f.fileName !==
+														fileInfo.fileName
+												)
+											);
+
+											// Refresh documents list
+											const data = await apiRequest<{
+												data: {
+													documents: Document[];
+												};
+											}>(`chats/${chatId}/messages`);
+											setDocuments(
+												data.data.documents || []
+											);
+
+											// Also remove from selected docs if it was selected
+											if (
+												selectedDocs.includes(
+													fileInfo.documentId
+												)
+											) {
+												toggleDoc(fileInfo.documentId);
+											}
+
+											toast.success('Document removed');
+										} catch (error) {
+											console.error(
+												'Error removing document:',
+												error
+											);
+											toast.error(
+												'Failed to remove document'
+											);
+										}
+									} else {
+										// If still uploading (no documentId yet), just remove from UI
+										setUploadingFiles((prev) =>
+											prev.filter(
+												(f) =>
+													f.fileName !==
+													fileInfo.fileName
+											)
+										);
+									}
+								}}
 							>
 								<IoMdRemove className="size-4" />
 							</Button>

@@ -1,6 +1,7 @@
 'use client';
 import { ReactNode } from 'react';
 import Sidebar from './components/Sidebar';
+import FileView from './components/fileView';
 import { FileViewProvider, useFileView } from './context/FileViewContext';
 import { SelectedDocsProvider } from './context/SelectedDocsContext';
 import { UserProvider } from './context/UserContext';
@@ -23,8 +24,11 @@ function ChatLayoutContent({ children }: { children: ReactNode }) {
 					</section>
 					{selectedFile && (
 						<section className="basis-1/2 h-full w-full rounded-bl-xl rounded-tl-xl bg-secondary">
-							<section className=" font-mono text-md w-full rounded-t-xl h-15 shadow-[0_0.1px_10px_rgba(0,0,0,0.7)] p-4 flex items-center justify-center">
+							<section className="font-mono text-md w-full rounded-t-xl h-15 shadow-[0_0.1px_10px_rgba(0,0,0,0.7)] p-4 flex items-center justify-center">
 								{selectedFile.fileName}
+							</section>
+							<section className="h-[calc(100%-60px)] w-full p-2">
+								<FileView />
 							</section>
 						</section>
 					)}

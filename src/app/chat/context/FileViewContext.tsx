@@ -2,11 +2,15 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface FileViewContextType {
-	selectedFile: { fileId: string; fileName: string } | null;
+	selectedFile: { fileId: string; fileName: string; chatId: string } | null;
 	setSelectedFile: (
-		file: { fileId: string; fileName: string } | null
+		file: { fileId: string; fileName: string; chatId: string } | null
 	) => void;
-	toggleFile: (file: { fileId: string; fileName: string }) => void;
+	toggleFile: (file: {
+		fileId: string;
+		fileName: string;
+		chatId: string;
+	}) => void;
 }
 
 const FileViewContext = createContext<FileViewContextType | undefined>(
@@ -17,9 +21,14 @@ export function FileViewProvider({ children }: { children: ReactNode }) {
 	const [selectedFile, setSelectedFile] = useState<{
 		fileId: string;
 		fileName: string;
+		chatId: string;
 	} | null>(null);
 
-	const toggleFile = (file: { fileId: string; fileName: string }) => {
+	const toggleFile = (file: {
+		fileId: string;
+		fileName: string;
+		chatId: string;
+	}) => {
 		setSelectedFile((current) =>
 			current?.fileId === file.fileId ? null : file
 		);

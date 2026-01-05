@@ -53,12 +53,16 @@ const ExistingChatPage = () => {
 				// Small delay to ensure backend has processed the creation
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				setChatCreated(true);
-			} catch (error: any) {
+			} catch (error) {
 				// Check if it's a duplicate key error (chat already exists)
+				const err = error as {
+					response?: { status?: number };
+					message?: string;
+				};
 				if (
-					error?.response?.status === 409 ||
-					error?.message?.includes('already exists') ||
-					error?.message?.includes('Conflict')
+					err?.response?.status === 409 ||
+					err?.message?.includes('already exists') ||
+					err?.message?.includes('Conflict')
 				) {
 					// Silently proceed if chat already exists
 					setChatCreated(true);
@@ -99,11 +103,14 @@ const ExistingChatPage = () => {
 							totalTokens: number;
 							createdAt: string;
 						}>;
-						documents: any[];
+						documents: Array<{
+							id: string;
+							fileName: string;
+							fileType: string;
+						}>;
 					};
 				}>(`chats/${chatId}/messages`);
 				console.log('Fetch chat response:', data);
-
 				setChatTitle(data.data.title);
 
 				// Convert messages from turn format to DisplayMessage format
@@ -137,9 +144,10 @@ const ExistingChatPage = () => {
 					}
 				});
 				setMessageFeedback(feedbackState);
-			} catch (error: any) {
+			} catch (error) {
 				// For new chats, it's normal to not find messages yet
-				if (error?.response?.status === 404) {
+				const err = error as { response?: { status?: number } };
+				if (err?.response?.status === 404) {
 					console.log('New chat - no messages yet');
 					setChatTitle('Chat');
 				} else {
@@ -232,12 +240,12 @@ const ExistingChatPage = () => {
 						totalTokens: number;
 						createdAt: string;
 					};
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					sourceDocuments: any[];
+					sourceDocuments: Array<{
+						id: string;
+						fileName: string;
+					}>;
 				};
-			}>(`chats/${chatId}/send-message`, 'POST', requestBody);
-
-			// Replace temp message with real ones (convert from turn format)
+			}>(`chats/${chatId}/send-message`, 'POST', requestBody); // Replace temp message with real ones (convert from turn format)
 			setMessages((prev) => [
 				...prev.slice(0, -1),
 				{

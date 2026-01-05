@@ -127,9 +127,9 @@ export async function apiRequest<T = unknown>(
 
 	if (!response.ok) {
 		const errorData = await response.json().catch(() => ({}));
-		const error: any = new Error(
+		const error = new Error(
 			errorData.message || `Request failed with status ${response.status}`
-		);
+		) as Error & { response?: { status: number; data: unknown } };
 		error.response = { status: response.status, data: errorData };
 
 		// Silently throw 409 errors for chat routes (chat already exists)
@@ -142,5 +142,17 @@ export async function apiRequest<T = unknown>(
 		throw error;
 	}
 
-	return response.json();
+	// Handle 204 No Content responses (no body to parse)
+	if (response.status === 204) {
+		return {} as T;
+	}
+
+	// Check if response has content before parsing JSON
+	const contentType = response.headers.get('content-type');
+	if (contentType && contentType.includes('application/json')) {
+		return response.json();
+	}
+
+	// If no JSON content, return empty object
+	return {} as T;
 }
