@@ -90,7 +90,7 @@ const Page = () => {
 								response.data.refreshToken!
 							);
 
-							router.replace('/chat/new');
+							router.replace('/chat');
 							return;
 						} else {
 							router.replace(

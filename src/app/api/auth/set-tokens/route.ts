@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 			secure: false, // Set to true in production with HTTPS
 			sameSite: 'lax',
 			path: '/',
-			maxAge: 60 * 15, // 15 minutes
+			maxAge: 60 * 60 * 24 * 7, // temporary
 		});
 
 		response.cookies.set('refreshToken', refreshToken, {

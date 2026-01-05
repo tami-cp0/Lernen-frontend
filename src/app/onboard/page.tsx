@@ -50,10 +50,9 @@ const OnboardingPage = () => {
 
 			if (hasTokens) {
 				console.log('Already signed in, redirecting to home...');
-				router.replace('/chat/new');
+				router.replace('/chat');
 				return;
 			}
-
 			try {
 				if (!token) {
 					router.replace('/sign-in');
@@ -100,7 +99,7 @@ const OnboardingPage = () => {
 				console.log(
 					'Token verified successfully, redirecting to home...'
 				);
-				router.replace('/chat/new');
+				router.replace('/chat');
 				return;
 			} catch (error) {
 				console.error('Token verification failed:', error);
@@ -153,7 +152,7 @@ const OnboardingPage = () => {
 			);
 			setIsLoading(false);
 
-			router.replace('/chat/new');
+			router.replace('/chat');
 			return;
 		} catch (error: unknown) {
 			if (axios.isAxiosError(error)) {

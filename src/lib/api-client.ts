@@ -78,13 +78,24 @@ export async function apiRequest<T = unknown>(
 	provider: string = 'email'
 ): Promise<T> {
 	const makeRequest = async (token?: string) => {
-		const headers: HeadersInit = { 'Content-Type': 'application/json' };
+		const headers: HeadersInit = {};
+
+		// Only set Content-Type for non-FormData bodies
+		if (!(body instanceof FormData)) {
+			headers['Content-Type'] = 'application/json';
+		}
+
 		if (token) headers['Authorization'] = `Bearer ${token}`;
 
 		return fetch(`${API_BASE_URL}/api/v1/${route}`, {
 			method,
 			headers,
-			body: body ? JSON.stringify(body) : undefined,
+			body:
+				body instanceof FormData
+					? body
+					: body
+					? JSON.stringify(body)
+					: undefined,
 		});
 	};
 
@@ -99,12 +110,13 @@ export async function apiRequest<T = unknown>(
 		const refreshed = await refreshToken(provider);
 
 		if (!refreshed) {
-			// Refresh failed - clear tokens and redirect
+			// Refresh failed - clear tokens and redirect immediately
 			await clearAuthTokens();
 			if (typeof window !== 'undefined') {
-				window.location.href = '/sign-in';
+				window.location.replace('/sign-in');
 			}
-			throw new Error('Authentication failed');
+			// Prevent further execution
+			return new Promise(() => {}) as Promise<T>;
 		}
 
 		// Retry with new token
@@ -115,9 +127,19 @@ export async function apiRequest<T = unknown>(
 
 	if (!response.ok) {
 		const errorData = await response.json().catch(() => ({}));
-		throw new Error(
+		const error: any = new Error(
 			errorData.message || `Request failed with status ${response.status}`
 		);
+		error.response = { status: response.status, data: errorData };
+
+		// Silently throw 409 errors for chat routes (chat already exists)
+		if (response.status === 409 && route.startsWith('chats')) {
+			throw error;
+		}
+
+		// Log other errors
+		console.error(`API Error [${method} ${route}]:`, error.message);
+		throw error;
 	}
 
 	return response.json();
