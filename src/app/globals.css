@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import 'react-pdf/dist/Page/TextLayer.css';
+@import 'highlight.js/styles/github-dark.css';
 
 :root {
 	--background: #0c0c0c;
@@ -67,4 +69,101 @@ input[type='password']::-webkit-textfield-decoration-container {
 			border: 2px solid transparent;
 		}
 	}
+}
+
+
+/* From Uiverse.io by aryamitra06 */ 
+.doc-loader {
+  display: flex;
+  align-items: center;
+}
+
+.bar {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background-color: rgb(153, 225, 29);
+  border-radius: 10px;
+  animation: scale-up4 1s linear infinite;
+}
+
+.bar:nth-child(2) {
+  height: 25px;
+  margin: 0 5px;
+  animation-delay: .25s;
+}
+
+.bar:nth-child(3) {
+  animation-delay: .5s;
+}
+
+@keyframes scale-up4 {
+  20% {
+    background-color: #151515;
+    transform: scaleY(1.5);
+  }
+
+  40% {
+    transform: scaleY(1);
+  }
+}
+
+/* From Uiverse.io by dovatgabriel */ 
+.pinwheel {
+  --uib-size: 30px;
+  --uib-speed: 0.8s;
+  --uib-color: #99e11d;
+  --uib-line-weight: 2px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--uib-size);
+  width: var(--uib-size);
+}
+
+.pinwheel__line {
+  position: absolute;
+  top: calc(50% - var(--uib-line-weight) / 2);
+  left: 0;
+  height: var(--uib-line-weight);
+  width: 100%;
+  border-radius: calc(var(--uib-line-weight) / 2);
+  background-color: var(--uib-color);
+  animation: rotate81232 var(--uib-speed) ease-in-out infinite;
+}
+
+.pinwheel__line:nth-child(2) {
+  animation-delay: calc(var(--uib-speed) * 0.075);
+  opacity: 0.8;
+}
+
+.pinwheel__line:nth-child(3) {
+  animation-delay: calc(var(--uib-speed) * 0.15);
+  opacity: 0.6;
+}
+
+.pinwheel__line:nth-child(4) {
+  animation-delay: calc(var(--uib-speed) * 0.225);
+  opacity: 0.4;
+}
+
+.pinwheel__line:nth-child(5) {
+  animation-delay: calc(var(--uib-speed) * 0.3);
+  opacity: 0.2;
+}
+
+.pinwheel__line:nth-child(6) {
+  animation-delay: calc(var(--uib-speed) * 0.375);
+  opacity: 0.1;
+}
+
+@keyframes rotate81232 {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(180deg);
+  }
 }

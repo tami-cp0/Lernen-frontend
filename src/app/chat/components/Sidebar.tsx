@@ -334,7 +334,7 @@ export default function Sidebar() {
 		<aside
 			className={`h-screen flex flex-col items-start px-4 pt-2 transition-all duration-300 ${
 				isSidebarExpanded
-					? 'w-90 max-w-90 justify-between'
+					? 'w-70 max-w-70 justify-between'
 					: 'w-[50px] px-2'
 			}`}
 		>

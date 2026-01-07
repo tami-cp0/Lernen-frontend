@@ -2,25 +2,44 @@
 import React, { useEffect, useState } from 'react';
 import { useFileView } from '../context/FileViewContext';
 import { apiRequest } from '@/lib/api-client';
-import PDFViewer from '@embedpdf/react-pdf-viewer';
-import { LoaderCircle } from 'lucide-react';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+import dynamic from 'next/dynamic';
+
+// Dynamically import PDF components to prevent SSR
+const PDFHeader = dynamic(() => import('./PDFHeader'), { ssr: false });
+const PDFViewer = dynamic(() => import('./PDFViewer'), { ssr: false });
 
 const FileView = () => {
-	const { selectedFile } = useFileView();
+	const { selectedFile, setCurrentPage, setPdfDocument } = useFileView();
 	const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [numPages, setNumPages] = useState<number>(0);
+	const [pageNumber, setPageNumber] = useState<number>(1);
+	const [isDocumentReady, setIsDocumentReady] = useState<boolean>(false);
+
+	// Configure PDF.js worker on client side only
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			import('react-pdf').then((module) => {
+				module.pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${module.pdfjs.version}/build/pdf.worker.min.mjs`;
+			});
+		}
+	}, []);
 
 	useEffect(() => {
 		if (!selectedFile) {
 			setPdfUrl(null);
 			setError(null);
+			setIsDocumentReady(false);
 			return;
 		}
 
 		const fetchSignedUrl = async () => {
 			setLoading(true);
 			setError(null);
+			setPdfUrl(null); // Clear previous URL
+			setIsDocumentReady(false);
 			try {
 				const response = await apiRequest<{
 					data: {
@@ -31,7 +50,12 @@ const FileView = () => {
 				}>(
 					`chats/${selectedFile.chatId}/documents/${selectedFile.fileId}/sign`
 				);
-				setPdfUrl(response.data.signedUrl);
+
+				if (response.data.signedUrl) {
+					setPdfUrl(response.data.signedUrl);
+				} else {
+					throw new Error('No signed URL received');
+				}
 			} catch (err) {
 				console.error('Error fetching signed URL:', err);
 				setError(
@@ -54,7 +78,7 @@ const FileView = () => {
 	if (loading) {
 		return (
 			<div className="w-full h-full flex items-center justify-center">
-				<LoaderCircle className="size-8 animate-spin text-primary" />
+				{/* no need for a loader <LoaderCircle className="size-8 animate-spin text-primary" /> */}
 			</div>
 		);
 	}
@@ -68,16 +92,46 @@ const FileView = () => {
 	}
 
 	if (!pdfUrl) {
-		return null;
+		return (
+			<div className="w-full h-full flex items-center justify-center">
+				<p className="text-gray-500 text-sm">Loading document...</p>
+			</div>
+		);
 	}
 
+	const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+		setNumPages(numPages);
+		setPageNumber(1);
+		setCurrentPage(1);
+		setIsDocumentReady(true);
+	};
+
+	const handleLoadError = (error: Error) => {
+		console.error('PDF load error:', error);
+		setError('Failed to load PDF document');
+		setIsDocumentReady(false);
+	};
+
+	const handlePageChange = (page: number) => {
+		setPageNumber(page);
+		setCurrentPage(page);
+	};
+
+	const handleDocumentLoad = (pdf: PDFDocumentProxy) => {
+		setPdfDocument(pdf);
+	};
+
 	return (
-		<div className="w-full h-full">
+		<div className="w-full h-full relative flex flex-col">
+			<PDFHeader pageNumber={pageNumber} numPages={numPages} />
 			<PDFViewer
-				config={{
-					src: pdfUrl,
-				}}
-				style={{ width: '100%', height: '100%' }}
+				pdfUrl={pdfUrl}
+				numPages={numPages}
+				onLoadSuccess={onDocumentLoadSuccess}
+				onLoadError={handleLoadError}
+				isDocumentReady={isDocumentReady}
+				onPageChange={handlePageChange}
+				onDocumentLoad={handleDocumentLoad}
 			/>
 		</div>
 	);

@@ -1,8 +1,15 @@
 'use client';
-import { redirect } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ChatPage() {
-	// Generate UUID and redirect immediately (synchronous)
-	const chatId = crypto.randomUUID();
-	redirect(`/chat/${chatId}`);
+	const router = useRouter();
+
+	useEffect(() => {
+		// Generate UUID and redirect on client side
+		const chatId = crypto.randomUUID();
+		router.replace(`/chat/${chatId}`);
+	}, [router]);
+
+	return null;
 }

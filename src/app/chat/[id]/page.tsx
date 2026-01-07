@@ -1,12 +1,18 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import MessageComposer from '../components/MessageComposer';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { ThumbsUp, Copy, RotateCcw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api-client';
 import { useSelectedDocs } from '../context/SelectedDocsContext';
+import type {
+	TextItem,
+	TextMarkedContent,
+} from 'pdfjs-dist/types/src/display/api';
+import { useFileView } from '../context/FileViewContext';
 
 type Message = {
 	id: string;
@@ -21,6 +27,7 @@ type ErrorMessage = {
 	content: string;
 	role: 'assistant';
 	type: 'error';
+	originalMessage?: string;
 };
 
 type DisplayMessage = Message | ErrorMessage;
@@ -28,16 +35,31 @@ type DisplayMessage = Message | ErrorMessage;
 const ExistingChatPage = () => {
 	const params = useParams();
 	const chatId = params.id as string;
-	const { selectedDocs } = useSelectedDocs();
+	const { selectedDocs, setSelectedDocs } = useSelectedDocs();
+	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
+		useFileView();
 
 	const [messages, setMessages] = useState<DisplayMessage[]>([]);
 	const [chatTitle, setChatTitle] = useState<string>('');
 	const [isLoading, setIsLoading] = useState(true);
+	const [isSendingMessage, setIsSendingMessage] = useState(false);
 	const [chatCreated, setChatCreated] = useState(false);
 	const isCreatingChat = useRef(false);
 	const [messageFeedback, setMessageFeedback] = useState<
 		Record<string, boolean | null>
 	>({});
+	const messagesEndRef = useRef<HTMLDivElement>(null);
+
+	// Close file viewer and clear selected docs when navigating to a new chat
+	useEffect(() => {
+		setSelectedFile(null);
+		setSelectedDocs([]);
+	}, [chatId, setSelectedFile, setSelectedDocs]);
+
+	// Auto-scroll to bottom when messages change
+	useEffect(() => {
+		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+	}, [messages]);
 
 	// Create chat if it doesn't exist (when chatId is a new UUID)
 	useEffect(() => {
@@ -202,6 +224,7 @@ const ExistingChatPage = () => {
 			createdAt: new Date().toISOString(),
 		};
 		setMessages((prev) => [...prev, tempUserMsg]);
+		setIsSendingMessage(true);
 
 		// Debug: log selectedDocs
 		console.log('selectedDocs before filtering:', selectedDocs);
@@ -210,11 +233,11 @@ const ExistingChatPage = () => {
 			const requestBody: {
 				message: string;
 				selectedDocumentIds?: string[];
+				pageNumber?: number;
+				pageContent?: string;
 			} = {
 				message: text,
-			};
-
-			// Only include selectedDocumentIds if there are selected docs (filter out empty values)
+			}; // Only include selectedDocumentIds if there are selected docs (filter out empty values)
 			const validSelectedDocs = selectedDocs.filter(
 				(id) => id && id.trim() !== ''
 			);
@@ -224,6 +247,31 @@ const ExistingChatPage = () => {
 			);
 			if (validSelectedDocs.length > 0) {
 				requestBody.selectedDocumentIds = validSelectedDocs;
+			}
+
+			// Extract and include page context if a file is open
+			if (selectedFile && pdfDocument) {
+				try {
+					const page = await pdfDocument.getPage(currentPage);
+					const textContent = await page.getTextContent();
+					const pageText = textContent.items
+						.map((item: TextItem | TextMarkedContent) => {
+							if ('str' in item) {
+								return item.str;
+							}
+							return '';
+						})
+						.join(' ');
+
+					requestBody.pageNumber = currentPage;
+					requestBody.pageContent = pageText;
+					console.log('Including page context:', {
+						pageNumber: currentPage,
+						pageContentLength: pageText.length,
+					});
+				} catch (err) {
+					console.error('Error extracting page text:', err);
+				}
 			}
 			console.log('requestBody:', requestBody);
 
@@ -273,11 +321,13 @@ const ExistingChatPage = () => {
 					content: 'Failed to send message',
 					role: 'assistant',
 					type: 'error',
+					originalMessage: text,
 				},
 			]);
+		} finally {
+			setIsSendingMessage(false);
 		}
 	};
-
 	return (
 		<main className="relative flex-1 h-full flex flex-col justify-center items-center pb-5">
 			<section className="font-mono text-md w-full rounded-t-xl h-15 shadow-[0_0.1px_10px_rgba(0,0,0,0.7)] p-4 flex items-center">
@@ -293,6 +343,14 @@ const ExistingChatPage = () => {
 					) : (
 						messages.filter(Boolean).map((message, index) => {
 							if ('type' in message && message.type === 'error') {
+								const handleRetry = () => {
+									setMessages((prev) =>
+										prev.filter((_, i) => i !== index)
+									);
+									if (message.originalMessage) {
+										handleSend(message.originalMessage);
+									}
+								};
 								return (
 									<div
 										key={index}
@@ -302,22 +360,24 @@ const ExistingChatPage = () => {
 										<Button
 											variant={'outline'}
 											className="w-8 h-8 border-red-500/50 bg-red-500/15 hover:bg-red-500/25 hover:border-red-500/70 transition-colors rounded-full"
+											onClick={handleRetry}
 										>
 											<RotateCcw size={16} />
 										</Button>
 									</div>
 								);
 							}
-
 							if (message.role === 'user') {
 								return (
 									<div
 										key={message.id}
 										className="max-w-[70%] self-end font-sans text-md text-foregrond flex flex-col gap-2 mt-4"
 									>
-										<p className="bg-background p-3 rounded-lg">
-											{message.content}
-										</p>
+										<div className="bg-background p-3 rounded-lg">
+											<MarkdownRenderer
+												content={message.content}
+											/>
+										</div>
 									</div>
 								);
 							}
@@ -327,9 +387,13 @@ const ExistingChatPage = () => {
 							return (
 								<div
 									key={msg.id}
-									className="max-w-[78%] self-start font-sans text-md text-foregrond gap-2"
+									className="max-w-[100%] self-start font-sans text-md text-foregrond gap-2"
 								>
-									<p className="p-2">{msg.content}</p>
+									<div className="p-2">
+										<MarkdownRenderer
+											content={msg.content}
+										/>
+									</div>
 									<div className="text-secondary-lighter flex justify-between items-center gap-6">
 										<button
 											onClick={() =>
@@ -388,6 +452,27 @@ const ExistingChatPage = () => {
 							);
 						})
 					)}
+					{isSendingMessage && (
+						<div className="max-w-[78%] self-start">
+							<div className="p-3 rounded-lg flex items-center gap-2">
+								{/* From Uiverse.io by elijahgummer */}
+								<div className="pinwheel">
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+								</div>
+
+								<span className="text-sm text-secondary-lighter">
+									Thinking...
+								</span>
+							</div>
+						</div>
+					)}
+					{/* Scroll anchor */}
+					<div ref={messagesEndRef} />
 				</div>
 			</section>
 
