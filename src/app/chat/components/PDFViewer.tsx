@@ -144,7 +144,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
 	return (
 		<div
-			className="flex-1 h-full overflow-auto flex justify-center items-start hidden-scrollbar md:custom-scrollbar"
+			className="flex-1 h-full relative overflow-auto flex justify-center items-start hidden-scrollbar md:custom-scrollbar"
 			onScroll={handleScroll}
 		>
 			<Document
@@ -155,12 +155,16 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 				}}
 				onLoadError={onLoadError}
 				loading={
-					<div className="mt-[60%] h-full w-full flex items-center justify-center">
-						<div className="doc-loader">
-							<span className="bar"></span>
-							<span className="bar"></span>
-							<span className="bar"></span>
-						</div>
+					<div className="absolute h-full flex items-center justify-center">
+						{/* From Uiverse.io by elijahgummer */}
+								<div className="pinwheel">
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+									<div className="pinwheel__line"></div>
+								</div>
 					</div>
 				}
 				error={
