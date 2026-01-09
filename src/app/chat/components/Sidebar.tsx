@@ -606,7 +606,7 @@ export default function Sidebar() {
 									href={`/chat/${chat.id}`}
 									onClick={() => setCurrentChat(chat.id)}
 									className={`
-										text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis
+										text-foreground font-sans text-md whitespace-nowrap overflow-hidden text-ellipsis
 										cursor-pointer mt-1 rounded-md px-3 py-1.5 w-62 block
 										${currentChat === chat.id ? 'bg-[#2e2e2e]' : 'hover:bg-[#252525]'}
 									`}
