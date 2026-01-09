@@ -44,7 +44,7 @@ export default function MarkdownRenderer({
 					},
 					// Customize pre blocks (code blocks container)
 					pre: ({ children }) => (
-						<pre className="bg-zinc-900 p-0 rounded-lg overflow-x-hidden my-3 max-w-full text-xs">
+						<pre className="bg-zinc-900 p-2 rounded-lg overflow-x-hidden my-3 max-w-full text-sm">
 							{children}
 						</pre>
 					),
@@ -70,12 +70,12 @@ export default function MarkdownRenderer({
 					),
 					// Customize lists
 					ul: ({ children }) => (
-						<ul className="list-disc list-inside mb-3 space-y-1">
+						<ul className="list-disc list-outside ml-5 mb-3 space-y-1">
 							{children}
 						</ul>
 					),
 					ol: ({ children }) => (
-						<ol className="list-decimal list-inside mb-3 space-y-1">
+						<ol className="list-decimal list-outside ml-5 mb-3 space-y-1">
 							{children}
 						</ol>
 					),
@@ -92,7 +92,7 @@ export default function MarkdownRenderer({
 					),
 					// Customize blockquotes
 					blockquote: ({ children }) => (
-						<blockquote className="border-l-4 border-primary pl-4 italic my-3">
+						<blockquote className="border-l-4 border-primary text-[#b8b8b8] pl-4 my-3">
 							{children}
 						</blockquote>
 					),
