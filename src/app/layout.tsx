@@ -34,9 +34,8 @@ export default function RootLayout({
 					position="top-center"
 					toastOptions={{
 						style: {
-							background: '#0C0C0C',
+							background: '#252525',
 							borderRadius: '12px',
-							boxShadow: '0 0 10px rgb(153, 225, 29, 0.1)',
 						},
 						classNames: {
 							error: 'text-red-500',

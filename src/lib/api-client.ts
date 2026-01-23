@@ -103,6 +103,8 @@ export async function apiRequest<T = unknown>(
 	const tokensRes = await fetch('/api/auth/get-tokens');
 	const { accessToken } = await tokensRes.json();
 
+	console.log(accessToken);
+
 	let response = await makeRequest(accessToken);
 
 	// If 401, try to refresh token

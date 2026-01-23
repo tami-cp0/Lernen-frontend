@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useUser } from '../context/UserContext';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
@@ -14,12 +15,27 @@ import { TbLogout } from 'react-icons/tb';
 import { FaPlus } from 'react-icons/fa6';
 import { IoMdRemove } from 'react-icons/io';
 import { MdOutlineOpenInNew } from 'react-icons/md';
-import { PanelsTopLeft, Plus, LoaderCircle } from 'lucide-react';
+import { PanelsTopLeft, Plus, LoaderCircle, X, Menu } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import { useFileView } from '../context/FileViewContext';
 import { useSelectedDocs } from '../context/SelectedDocsContext';
+import { useSidebar } from '../context/SidebarContext';
 import { toast } from 'sonner';
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { TooltipArrow } from '@radix-ui/react-tooltip';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogOverlay,
+	DialogTitle,
+} from '@/components/ui/dialog';
 
 type Chat = {
 	id: string;
@@ -28,12 +44,12 @@ type Chat = {
 	updatedAt: string;
 };
 
-type User = {
-	id: string;
-	email: string;
-	firstName: string;
-	lastName: string;
-};
+// type User = {
+// 	id: string;
+// 	email: string;
+// 	firstName: string;
+// 	lastName: string;
+// };
 
 type Document = {
 	id: string;
@@ -51,44 +67,35 @@ export default function Sidebar() {
 	const pathname = usePathname();
 	const { selectedFile, toggleFile } = useFileView();
 	const { selectedDocs, toggleDoc, addDoc } = useSelectedDocs();
+	const { isSidebarExpanded, setIsSidebarExpanded } = useSidebar();
 	const [currentChat, setCurrentChat] = useState<string | null>(null);
-	const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 	const [chats, setChats] = useState<Chat[]>([]);
-	const [user, setUser] = useState<User | null>(null);
+	const { user } = useUser();
 	const [documents, setDocuments] = useState<Document[]>([]);
 	const [uploadingFiles, setUploadingFiles] = useState<
 		{ fileName: string; documentId?: string }[]
 	>([]);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [isDocDialogOpen, setIsDocDialogOpen] = useState<boolean>(false);
 
-	// Fetch chats and user data on mount
+	// Fetch chats on mount
 	useEffect(() => {
-		const fetchData = async () => {
+		const fetchChats = async () => {
 			try {
-				const [chatsData, userData] = await Promise.all([
-					apiRequest<{ data: { chats: Chat[] } } | { chats: Chat[] }>(
-						'chats'
-					),
-					apiRequest<{ data: { user: User } }>('users/profile'),
-				]);
-				console.log('Chats data received:', chatsData);
-
-				// Handle both response structures
+				const chatsData = await apiRequest<
+					{ data: { chats: Chat[] } } | { chats: Chat[] }
+				>('chats');
 				const chatsArray =
 					'data' in chatsData
 						? chatsData.data.chats
 						: chatsData.chats;
-				console.log('Chats array:', chatsArray);
 				setChats(chatsArray || []);
-				setUser(userData.data.user);
 			} catch (error) {
-				console.error('Error fetching sidebar data:', error);
-				// Set empty array on error to prevent undefined
+				console.error('Error fetching sidebar chats:', error);
 				setChats([]);
 			}
 		};
-
-		fetchData();
+		fetchChats();
 	}, []);
 
 	// Refetch chats when pathname changes (new chat created or navigated)
@@ -193,9 +200,16 @@ export default function Sidebar() {
 	}
 
 	function handleOpenFile(fileId: string, fileName: string) {
-		const chatId = pathname?.match(/\/chat\/([^\/]+)/)?.[1];
-		if (!chatId) return;
-		toggleFile({ fileId, fileName, chatId });
+		// feature not available on mobile devices
+		const isBelowlg = !window.matchMedia('(min-width: 1024px)').matches;
+
+		if (isBelowlg) {
+			setIsDocDialogOpen(true);
+		} else {
+			const chatId = pathname?.match(/\/chat\/([^\/]+)/)?.[1];
+			if (!chatId) return;
+			toggleFile({ fileId, fileName, chatId });
+		}
 	}
 
 	const handleFileUpload = async (
@@ -331,150 +345,274 @@ export default function Sidebar() {
 	};
 
 	return (
-		<aside
-			className={`h-screen flex flex-col items-start px-4 pt-2 transition-all duration-300 ${
-				isSidebarExpanded
-					? 'w-70 max-w-70 justify-between'
-					: 'w-[50px] px-2'
-			}`}
-		>
-			<div className="flex flex-row items-center gap-3 h-fit py-4 mb-8 w-full">
-				{isSidebarExpanded ? (
-					<>
-						<Image
-							src="/lernen-logo.svg"
-							alt="Lernen logo"
-							width={25}
-							height={25}
-						/>
-
-						<p className="text-lg font-sans"></p>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() =>
-								setIsSidebarExpanded(!isSidebarExpanded)
-							}
-							className="p-1 hover:bg-[#252525] ml-auto"
-						>
-							<PanelsTopLeft
-								size={20}
-								className="text-foreground"
-							/>
-						</Button>
-					</>
-				) : (
-					<div className="w-full flex justify-center group relative">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() =>
-								setIsSidebarExpanded(!isSidebarExpanded)
-							}
-							className="p-1 hover:bg-transparent relative"
-						>
+		<>
+			<Dialog open={isDocDialogOpen} onOpenChange={setIsDocDialogOpen}>
+				<DialogOverlay className="bg-secondary-lighter/10 backdrop-blur-xs" />
+				<DialogContent
+					showCloseButton={false}
+					className="border-0 w-[70%] bg-background/80 z-1000 backdrop-blur-md "
+				>
+					<DialogHeader>
+						<DialogTitle className="text-start">
+							Unavailable
+						</DialogTitle>
+						<DialogDescription className="text-start">
+							For the best experience, this feature is available on larger screens.
+						</DialogDescription>
+					</DialogHeader>
+				</DialogContent>
+			</Dialog>
+			<aside
+				className={`z-10 bg-background relative flex flex-col transition-none md:transition-all duration-300 ${
+					isSidebarExpanded
+						? 'w-70 max-w-70 h-screen justify-between items-start px-4'
+						: 'md:w-[50px] md:h-screen items-center'
+				}`}
+			>
+				<div className="w-full">
+					{isSidebarExpanded ? (
+						<div className="flex flex-row items-center justify-between py-3 mb-6 w-full">
 							<Image
 								src="/lernen-logo.svg"
 								alt="Lernen logo"
-								width={28}
-								height={28}
-								className="group-hover:opacity-0 transition-opacity"
+								width={25}
+								height={25}
 							/>
-							<PanelsTopLeft
-								size={20}
-								className="text-foreground absolute inset-0 m-auto opacity-0 group-hover:opacity-100 transition-opacity"
-							/>
-						</Button>
-					</div>
-				)}
-			</div>
-			<Button
-				onClick={() => {
-					// Generate UUID and navigate directly
-					const chatId = crypto.randomUUID();
-					router.push(`/chat/${chatId}`);
-				}}
-				variant={'outline'}
-				className={`hover:bg-background h-fit bg-background border-0 justify-start items-center px-0! transition-none ${
-					isSidebarExpanded ? 'my-0' : 'absolute top-25'
-				}`}
-			>
-				<FaPlus className="rounded-full bg-primary fill-background size-4 p-0.5" />
-				{isSidebarExpanded && (
-					<span className="text-sm text-primary font-mono">
-						New chat
-					</span>
-				)}
-			</Button>
-			{isSidebarExpanded && (
-				<section className="h-fit mt-2 flex w-full flex-col gap-2">
-					<div className="flex flex-row justify-between items-center w-full border-b-1 border-[#252525] py-2">
-						<h1 className="font-mono text-sm text-[#c7c7c7] whitespace-nowrap">
-							Sources
-						</h1>
-						<p className="text-xs font-mono text-[#c7c7c7]">
-							{documents.length}/5
-						</p>
-					</div>
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept=".pdf,application/pdf"
-						multiple
-						onChange={handleFileUpload}
-						className="hidden"
-						disabled={documents.length >= 5}
-					/>
-					<div
-						onClick={() =>
-							documents.length < 5 &&
-							fileInputRef.current?.click()
-						}
-						className={`mt-2 mb-1 flex gap-4 border-1 justify-center items-center font-sans py-2 text-sm border-[#252525] rounded-4xl ${
-							documents.length >= 5
-								? 'opacity-50 cursor-not-allowed'
-								: 'cursor-pointer hover:bg-[#252525]'
-						}`}
-					>
-						<Plus color="white" strokeWidth={2} className="h-4" />
-						Add sources
-					</div>
-					{uploadingFiles.map((fileInfo) => (
-						<div
-							key={fileInfo.fileName}
-							className="flex flex-row h-fit w-full rounded-md justify-start items-center gap-3 bg-[#252525] p-0.5 px-2"
-						>
-							<div className="w-4 h-4 flex items-center justify-center">
-								<LoaderCircle className="size-4 animate-spin text-primary" />
-							</div>
-							<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
-								{fileInfo.fileName?.split('.')[0] ||
-									fileInfo.fileName}
-							</p>
+
+							{/* button for mobile */}
 							<Button
-								variant={'ghost'}
-								size={'sm'}
-								className="text-red-500/30 hover:text-red-500 cursor-pointer p-0!"
-								onClick={async () => {
-									// If document has been uploaded and has an ID, call API to remove it
-									if (fileInfo.documentId) {
-										const chatId =
-											pathname?.match(
-												/\/chat\/([^\/]+)/
-											)?.[1];
-										if (!chatId) return;
+								variant="ghost"
+								size="sm"
+								onClick={() =>
+									setIsSidebarExpanded(!isSidebarExpanded)
+								}
+								className="md:hidden hover:bg-[#252525] w-8 h-8 cursor-e-resize"
+							>
+								<X size={20} className="text-[#777777]" />
+							</Button>
 
-										try {
-											await apiRequest(
-												`chats/${chatId}/remove-document`,
-												'DELETE',
-												{
-													documentId:
-														fileInfo.documentId,
+							{/* button not for mobile devices */}
+							<Tooltip>
+								<TooltipTrigger className="hidden md:block">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() =>
+											setIsSidebarExpanded(
+												!isSidebarExpanded
+											)
+										}
+										className="hover:bg-[#252525] w-8 h-8 cursor-e-resize"
+									>
+										<PanelsTopLeft
+											size={20}
+											className="text-[#777777]"
+										/>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent
+									side="right"
+									className="bg-[#252525] text-foreground"
+								>
+									<p>Close sidebar</p>
+									<TooltipArrow />
+								</TooltipContent>
+							</Tooltip>
+						</div>
+					) : (
+						<div className="py-3 flex justify-center mb-6">
+							{/* button for mobile  */}
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() =>
+									setIsSidebarExpanded(!isSidebarExpanded)
+								}
+								className="md:hidden hover:bg-[#252525] w-8 h-8 cursor-e-resize absolute left-5 md:left-0 md:relative"
+							>
+								<Menu
+									size={20}
+									className="text-secondary-lighter"
+								/>
+							</Button>
+
+							{/* not for mobile devices */}
+							<Tooltip>
+								<TooltipTrigger className="hidden md:block">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() =>
+											setIsSidebarExpanded(
+												!isSidebarExpanded
+											)
+										}
+										className="hover:bg-[#252525] w-8 h-8 cursor-e-resize"
+									>
+										<PanelsTopLeft
+											size={20}
+											className="text-[#777777]"
+										/>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent
+									side="right"
+									className="text-foreground "
+								>
+									<p>Open sidebar</p>
+									<TooltipArrow />
+								</TooltipContent>
+							</Tooltip>
+						</div>
+					)}
+				</div>
+				<Button
+					onClick={() => {
+						// Generate UUID and navigate directly
+						const chatId = crypto.randomUUID();
+						router.push(`/chat/${chatId}`);
+					}}
+					variant={'outline'}
+					className="hover:bg-background h-fit border-0 bg-background justify-start items-center px-0! my-0"
+				>
+					{isSidebarExpanded ? (
+						<>
+							<FaPlus className="rounded-full bg-primary fill-background size-4 p-0.5 cursor-pointer" />
+							<span className="text-sm text-primary font-mono">
+								New chat
+							</span>
+						</>
+					) : (
+						<Tooltip>
+							<TooltipTrigger className="hidden md:block">
+								<FaPlus className="rounded-full bg-primary fill-background size-4 p-0.5" />
+							</TooltipTrigger>
+							<TooltipContent
+								side="right"
+								className="text-foreground"
+							>
+								<p>New chat</p>
+								<TooltipArrow />
+							</TooltipContent>
+						</Tooltip>
+					)}
+				</Button>
+				{isSidebarExpanded && (
+					<section className="h-fit mt-2 flex w-full flex-col gap-2">
+						<div className="flex flex-row justify-between items-center w-full border-b-1 border-[#252525] py-2">
+							<h1 className="font-mono text-sm text-[#c7c7c7] whitespace-nowrap">
+								Sources
+							</h1>
+							<p className="text-xs font-mono text-[#c7c7c7]">
+								{documents.length}/5
+							</p>
+						</div>
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept=".pdf,application/pdf"
+							multiple
+							onChange={handleFileUpload}
+							className="hidden"
+							disabled={documents.length >= 5}
+						/>
+						<div
+							onClick={() =>
+								documents.length < 5 &&
+								fileInputRef.current?.click()
+							}
+							className={`transition-none mt-2 mb-1 flex gap-4 border-1 justify-center items-center font-sans py-2 text-sm border-[#252525] rounded-4xl ${
+								documents.length >= 5
+									? 'opacity-50 cursor-not-allowed'
+									: 'cursor-pointer hover:bg-[#252525]'
+							}`}
+						>
+							<Plus
+								color="white"
+								strokeWidth={2}
+								className="h-4"
+							/>
+							<p className="shrink-0">Add sources</p>
+						</div>
+						{uploadingFiles.map((fileInfo) => (
+							<div
+								key={fileInfo.fileName}
+								className="flex flex-row h-fit w-full rounded-md justify-start items-center gap-3 bg-[#252525] p-0.5 px-2"
+							>
+								<div className="w-4 h-4 flex items-center justify-center">
+									<LoaderCircle className="size-4 animate-spin text-primary" />
+								</div>
+								<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
+									{fileInfo.fileName?.split('.')[0] ||
+										fileInfo.fileName}
+								</p>
+								<Button
+									variant={'ghost'}
+									size={'sm'}
+									className="text-red-500/30 hover:text-red-500 cursor-pointer p-0!"
+									onClick={async () => {
+										// If document has been uploaded and has an ID, call API to remove it
+										if (fileInfo.documentId) {
+											const chatId =
+												pathname?.match(
+													/\/chat\/([^\/]+)/
+												)?.[1];
+											if (!chatId) return;
+
+											try {
+												await apiRequest(
+													`chats/${chatId}/remove-document`,
+													'DELETE',
+													{
+														documentId:
+															fileInfo.documentId,
+													}
+												);
+
+												// Remove from uploading state after successful API call
+												setUploadingFiles((prev) =>
+													prev.filter(
+														(f) =>
+															f.fileName !==
+															fileInfo.fileName
+													)
+												);
+
+												// Refresh documents list
+												const data = await apiRequest<{
+													data: {
+														documents: Document[];
+													};
+												}>(`chats/${chatId}/messages`);
+												setDocuments(
+													data.data.documents || []
+												);
+
+												// Also remove from selected docs if it was selected
+												if (
+													selectedDocs.includes(
+														fileInfo.documentId
+													)
+												) {
+													toggleDoc(
+														fileInfo.documentId
+													);
 												}
-											);
 
-											// Remove from uploading state after successful API call
+												toast.success(
+													'Document removed'
+												);
+											} catch (error) {
+												console.error(
+													'Error removing document:',
+													error
+												);
+												toast.error(
+													'Failed to remove document'
+												);
+											}
+										} else {
+											// If still uploading (no documentId yet), just remove from UI
 											setUploadingFiles((prev) =>
 												prev.filter(
 													(f) =>
@@ -482,179 +620,144 @@ export default function Sidebar() {
 														fileInfo.fileName
 												)
 											);
-
-											// Refresh documents list
-											const data = await apiRequest<{
-												data: {
-													documents: Document[];
-												};
-											}>(`chats/${chatId}/messages`);
-											setDocuments(
-												data.data.documents || []
-											);
-
-											// Also remove from selected docs if it was selected
-											if (
-												selectedDocs.includes(
-													fileInfo.documentId
-												)
-											) {
-												toggleDoc(fileInfo.documentId);
-											}
-
-											toast.success('Document removed');
-										} catch (error) {
-											console.error(
-												'Error removing document:',
-												error
-											);
-											toast.error(
-												'Failed to remove document'
-											);
 										}
-									} else {
-										// If still uploading (no documentId yet), just remove from UI
-										setUploadingFiles((prev) =>
-											prev.filter(
-												(f) =>
-													f.fileName !==
-													fileInfo.fileName
-											)
-										);
-									}
-								}}
-							>
-								<IoMdRemove className="size-4" />
-							</Button>
-							<Button
-								variant={'ghost'}
-								size={'sm'}
-								className="text-primary/30 opacity-50 cursor-not-allowed p-0!"
-								disabled
-							>
-								<MdOutlineOpenInNew className="size-4 m-0!" />
-							</Button>
-						</div>
-					))}
-					{documents.length > 0 &&
-						documents.map((file) => {
-							const fileOpened = selectedFile?.fileId === file.id;
-							const isSelected = selectedDocs.includes(file.id);
-							return (
-								<div
-									key={file.id}
-									className="flex flex-row h-fit w-full rounded-md justify-start items-center gap-3 bg-[#252525] p-0.5 px-2"
+									}}
 								>
-									<Checkbox
-										checked={isSelected}
-										onCheckedChange={() =>
-											toggleDoc(file.id)
-										}
-										className="border-secondary-lighter rounded-none data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-									/>
-									<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
-										{file.fileName?.split('.')[0] ||
-											file.fileName}
-									</p>
-									<Button
-										variant={'ghost'}
-										size={'sm'}
-										className="text-red-500/30 hover:text-red-500 cursor-pointer p-0!"
-										onClick={() =>
-											handleRemoveFile(file.id)
-										}
+									<IoMdRemove className="size-4" />
+								</Button>
+								<Button
+									variant={'ghost'}
+									size={'sm'}
+									className="text-primary/30 opacity-50 cursor-not-allowed p-0!"
+									disabled
+								>
+									<MdOutlineOpenInNew className="size-4 m-0!" />
+								</Button>
+							</div>
+						))}
+						{documents.length > 0 &&
+							documents.map((file) => {
+								const fileOpened =
+									selectedFile?.fileId === file.id;
+								const isSelected = selectedDocs.includes(
+									file.id
+								);
+								return (
+									<div
+										key={file.id}
+										className="flex flex-row h-fit w-full rounded-md justify-start items-center gap-3 bg-[#252525] p-0.5 px-2"
 									>
-										<IoMdRemove className="size-4" />
-									</Button>
-									<Button
-										variant={'ghost'}
-										size={'sm'}
-										className={` ${
-											fileOpened
-												? 'text-primary'
-												: 'text-primary/30 hover:text-primary'
-										} cursor-pointer p-0!`}
-										onClick={() =>
-											handleOpenFile(
-												file.id,
-												file.fileName
-											)
-										}
-									>
-										<MdOutlineOpenInNew className="size-4 m-0!" />
-									</Button>
-								</div>
-							);
-						})}
-				</section>
-			)}
-			{isSidebarExpanded && (
-				<section className="relative flex-1 w-full flex flex-col max-h-full overflow-hidden mt-5">
-					<h1 className="font-mono h-6 text-sm text-[#c7c7c7]">
-						Recents
-					</h1>
-					{/* <div className="absolute top-6 left-0 right-0 h-6 w-63 bg-gradient-to-t from-transparent to-background pointer-events-none"></div> */}
-					<div className="hidden-scrollbar md:custom-scrollbar flex-1 pt-2 overflow-y-auto overflow-x-hidden pb-2">
-						{chats.length === 0 ? (
-							<p className="text-secondary-lighter text-sm px-3 py-2">
-								No chats
-							</p>
-						) : (
-							chats.map((chat) => (
-								<Link
-									key={chat.id}
-									href={`/chat/${chat.id}`}
-									onClick={() => setCurrentChat(chat.id)}
-									className={`
-										text-foreground font-sans text-md whitespace-nowrap overflow-hidden text-ellipsis
-										cursor-pointer mt-1 rounded-md px-3 py-1.5 w-62 block
+										<Checkbox
+											checked={isSelected}
+											onCheckedChange={() =>
+												toggleDoc(file.id)
+											}
+											className="border-secondary-lighter rounded-none data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+										/>
+										<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
+											{file.fileName?.split('.')[0] ||
+												file.fileName}
+										</p>
+										<Button
+											variant={'ghost'}
+											size={'sm'}
+											className="text-red-500/30 hover:text-red-500 cursor-pointer p-0!"
+											onClick={() =>
+												handleRemoveFile(file.id)
+											}
+										>
+											<IoMdRemove className="size-4" />
+										</Button>
+										<Button
+											variant={'ghost'}
+											size={'sm'}
+											className={` ${
+												fileOpened
+													? 'text-primary'
+													: 'text-primary/30 hover:text-primary'
+											} cursor-pointer p-0!`}
+											onClick={() =>
+												handleOpenFile(
+													file.id,
+													file.fileName
+												)
+											}
+										>
+											<MdOutlineOpenInNew className="size-4 m-0!" />
+										</Button>
+									</div>
+								);
+							})}
+					</section>
+				)}
+				{isSidebarExpanded && (
+					<section className="relative flex-1 w-full flex flex-col max-h-full overflow-hidden mt-5">
+						<h1 className="font-mono h-8 text-sm text-[#c7c7c7] border-b-1 border-[#252525] flex items-center py-2">
+							Recents
+						</h1>
+						{/* <div className="absolute top-6 left-0 right-0 h-6 w-63 bg-gradient-to-t from-transparent to-background pointer-events-none"></div> */}
+						<div className="hidden-scrollbar md:custom-scrollbar flex-1 pb-2 overflow-y-auto overflow-x-hidden">
+							{chats.length === 0 ? (
+								<p className="text-secondary-lighter text-sm px-3 py-2">
+									No chats
+								</p>
+							) : (
+								chats.map((chat) => (
+									<Link
+										key={chat.id}
+										href={`/chat/${chat.id}`}
+										onClick={() => setCurrentChat(chat.id)}
+										className={`
+										text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis
+										cursor-pointer mt-1 rounded-md px-3 py-1.5 w-[95%] block
 										${currentChat === chat.id ? 'bg-[#2e2e2e]' : 'hover:bg-[#252525]'}
 									`}
-								>
-									{chat.title}
-								</Link>
-							))
-						)}
-					</div>
-					<div className="absolute bottom-0 left-0 right-0 h-6 w-63 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
-				</section>
-			)}
-			{!isSidebarExpanded && <div className="flex-1"></div>}
-			<Popover>
-				<PopoverTrigger
-					className={`transition-none border-[#252525] border-t-1 w-full h-fit ${
-						isSidebarExpanded ? 'p-2' : 'p-1'
-					}`}
-				>
-					<div
-						className={`flex flex-row h-full min-w-full rounded-md items-center cursor-pointer hover:bg-[#212121] ${
-							isSidebarExpanded
-								? 'justify-start gap-3 p-2'
-								: 'justify-center p-1'
+									>
+										{chat.title}
+									</Link>
+								))
+							)}
+						</div>
+						<div className="absolute bottom-0 left-0 right-0 h-6 w-63 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
+					</section>
+				)}
+				{!isSidebarExpanded && <div className="flex-1"></div>}
+				<Popover>
+					<PopoverTrigger
+						className={`transition-none border-[#252525] border-t-1 w-full h-fit ${
+							isSidebarExpanded ? 'p-2' : 'p-1 hidden md:block'
 						}`}
 					>
-						<p className="w-8 h-8 bg-secondary-lighter rounded-full flex-shrink-0"></p>
-						{isSidebarExpanded && user && (
-							<p className="text-foreground text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
-								{`${user.firstName} ${user.lastName}`}
-							</p>
-						)}
-					</div>
-				</PopoverTrigger>
-				<PopoverContent
-					side="top"
-					className="md:bg-background w-65 border-0 p-3 flex flex-col justify-start items-center gap-2"
-				>
-					<Button
-						variant={'outline'}
-						className="w-full justify-start"
-						onClick={handleLogout}
+						<div
+							className={`flex flex-row h-full min-w-full rounded-md items-center cursor-pointer hover:bg-[#212121] ${
+								isSidebarExpanded
+									? 'justify-start gap-3 p-2'
+									: 'justify-center p-1'
+							}`}
+						>
+							<p className="w-8 h-8 bg-secondary-lighter rounded-full flex-shrink-0"></p>
+							{isSidebarExpanded && user && (
+								<p className="text-foreground text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
+									{`${user.firstName} ${user.lastName}`}
+								</p>
+							)}
+						</div>
+					</PopoverTrigger>
+					<PopoverContent
+						side="top"
+						className="md:bg-background w-65 border-0 p-3 flex flex-col justify-start items-center gap-2"
 					>
-						<TbLogout color="red" />
-						<span className="text-red-600">Logout</span>
-					</Button>
-				</PopoverContent>
-			</Popover>
-		</aside>
+						<Button
+							variant={'outline'}
+							className="w-full justify-start"
+							onClick={handleLogout}
+						>
+							<TbLogout color="red" />
+							<span className="text-red-600">Logout</span>
+						</Button>
+					</PopoverContent>
+				</Popover>
+			</aside>
+		</>
 	);
 }

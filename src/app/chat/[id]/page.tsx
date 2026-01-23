@@ -1,36 +1,15 @@
 'use client';
-import { Button } from '@/components/ui/button';
 import MessageComposer from '../components/MessageComposer';
-import MarkdownRenderer from '@/components/MarkdownRenderer';
-import { ThumbsUp, Copy, RotateCcw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api-client';
 import { useSelectedDocs } from '../context/SelectedDocsContext';
-import type {
-	TextItem,
-	TextMarkedContent,
-} from 'pdfjs-dist/types/src/display/api';
 import { useFileView } from '../context/FileViewContext';
-
-type Message = {
-	id: string;
-	originalId?: string; // The actual database message ID for feedback
-	content: string;
-	role: 'user' | 'assistant';
-	tokens: number;
-	createdAt: string;
-};
-
-type ErrorMessage = {
-	content: string;
-	role: 'assistant';
-	type: 'error';
-	originalMessage?: string;
-};
-
-type DisplayMessage = Message | ErrorMessage;
+import { WelcomeScreen } from '../components/WelcomeScreen';
+import { MessageList } from '../components/MessageList';
+import { LoadingIndicator } from '../components/LoadingIndicator';
+import { useChatMessages } from '../hooks/useChatMessages';
+import { useStreamingMessage } from '../hooks/useStreamingMessage';
 
 const ExistingChatPage = () => {
 	const params = useParams();
@@ -39,16 +18,40 @@ const ExistingChatPage = () => {
 	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
 		useFileView();
 
-	const [messages, setMessages] = useState<DisplayMessage[]>([]);
-	const [chatTitle, setChatTitle] = useState<string>('');
-	const [isLoading, setIsLoading] = useState(true);
-	const [isSendingMessage, setIsSendingMessage] = useState(false);
 	const [chatCreated, setChatCreated] = useState(false);
 	const isCreatingChat = useRef(false);
-	const [messageFeedback, setMessageFeedback] = useState<
-		Record<string, boolean | null>
-	>({});
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const loadingRef = useRef<HTMLDivElement>(null);
+	const [composerText, setComposerText] = useState('');
+
+	// Custom hooks for state and logic
+	const {
+		messages,
+		setMessages,
+		chatTitle,
+		isLoading,
+		messageFeedback,
+		handleHelpfulClick,
+		handleNotHelpfulClick,
+	} = useChatMessages(chatId, chatCreated);
+
+	const { sendMessage, isSendingMessage } = useStreamingMessage({
+		chatId,
+		selectedDocs,
+		selectedFile,
+		pdfDocument,
+		currentPage,
+		setMessages,
+	});
+
+	// show hint for message composer if the user hasnt seen it before
+	useEffect(() => {
+		const isFirstVisit = !localStorage.getItem('visited');
+
+		if (isFirstVisit) {
+			localStorage.setItem('visited', 'true');
+		}
+	}, []);
 
 	// Close file viewer and clear selected docs when navigating to a new chat
 	useEffect(() => {
@@ -56,10 +59,16 @@ const ExistingChatPage = () => {
 		setSelectedDocs([]);
 	}, [chatId, setSelectedFile, setSelectedDocs]);
 
-	// Auto-scroll to bottom when messages change
+	// Auto-scroll to bottom when messages change or when sending starts
 	useEffect(() => {
-		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-	}, [messages]);
+		if (isSendingMessage) {
+			// Scroll to loading indicator when sending
+			loadingRef.current?.scrollIntoView({ behavior: 'smooth' });
+		} else {
+			// Scroll to bottom when messages update
+			messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+		}
+	}, [messages, isSendingMessage]);
 
 	// Create chat if it doesn't exist (when chatId is a new UUID)
 	useEffect(() => {
@@ -100,384 +109,53 @@ const ExistingChatPage = () => {
 		createChatIfNeeded();
 	}, [chatId, chatCreated]);
 
-	// Fetch existing messages when component mounts
-	useEffect(() => {
-		if (!chatCreated) return; // Wait for chat to be created first
-
-		const fetchChatMessages = async () => {
-			try {
-				setIsLoading(true);
-				const data = await apiRequest<{
-					data: {
-						id: string;
-						userId: string;
-						title: string;
-						createdAt: string;
-						updatedAt: string;
-						messages: Array<{
-							id: string;
-							chatId: string;
-							turn: {
-								user: string;
-								assistant: string;
-							};
-							helpful: boolean | null;
-							totalTokens: number;
-							createdAt: string;
-						}>;
-						documents: Array<{
-							id: string;
-							fileName: string;
-							fileType: string;
-						}>;
-					};
-				}>(`chats/${chatId}/messages`);
-				console.log('Fetch chat response:', data);
-				setChatTitle(data.data.title);
-
-				// Convert messages from turn format to DisplayMessage format
-				const convertedMessages: DisplayMessage[] =
-					data.data.messages.flatMap((msg) => [
-						{
-							id: msg.id + '-user',
-							originalId: msg.id,
-							content: msg.turn.user,
-							role: 'user' as const,
-							tokens: 0,
-							createdAt: msg.createdAt,
-						},
-						{
-							id: msg.id + '-assistant',
-							originalId: msg.id,
-							content: msg.turn.assistant,
-							role: 'assistant' as const,
-							tokens: msg.totalTokens,
-							createdAt: msg.createdAt,
-						},
-					]);
-
-				setMessages(convertedMessages);
-
-				// Load existing feedback state
-				const feedbackState: Record<string, boolean | null> = {};
-				data.data.messages.forEach((msg) => {
-					if (msg.helpful !== null) {
-						feedbackState[msg.id] = msg.helpful;
-					}
-				});
-				setMessageFeedback(feedbackState);
-			} catch (error) {
-				// For new chats, it's normal to not find messages yet
-				const err = error as { response?: { status?: number } };
-				if (err?.response?.status === 404) {
-					console.log('New chat - no messages yet');
-					setChatTitle('Chat');
-				} else {
-					console.error('Error fetching chat:', error);
-				}
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchChatMessages();
-	}, [chatId, chatCreated]);
-
-	const handleHelpfulClick = async (messageId: string) => {
-		try {
-			await apiRequest(
-				`chats/${chatId}/messages/${messageId}/feedback`,
-				'PATCH',
-				{ helpful: true }
-			);
-			setMessageFeedback((prev) => ({ ...prev, [messageId]: true }));
-		} catch (error) {
-			console.error('Error submitting feedback:', error);
-		}
+	const handleRetry = (originalMessage: string) => {
+		sendMessage(originalMessage);
 	};
 
-	const handleNotHelpfulClick = async (messageId: string) => {
-		try {
-			await apiRequest(
-				`chats/${chatId}/messages/${messageId}/feedback`,
-				'PATCH',
-				{ helpful: false }
-			);
-			setMessageFeedback((prev) => ({ ...prev, [messageId]: false }));
-		} catch (error) {
-			console.error('Error submitting feedback:', error);
-		}
-	};
-
-	const handleCopyToClipboard = (text: string) => {
-		navigator.clipboard.writeText(text);
-		toast.success('Copied to clipboard');
-	};
-
-	const handleSend = async (text: string) => {
-		// Optimistically add user message
-		const tempUserMsg: DisplayMessage = {
-			content: text,
-			role: 'user',
-			id: 'temp-' + Date.now(),
-			tokens: 0,
-			createdAt: new Date().toISOString(),
-		};
-		setMessages((prev) => [...prev, tempUserMsg]);
-		setIsSendingMessage(true);
-
-		// Debug: log selectedDocs
-		console.log('selectedDocs before filtering:', selectedDocs);
-
-		try {
-			const requestBody: {
-				message: string;
-				selectedDocumentIds?: string[];
-				pageNumber?: number;
-				pageContent?: string;
-			} = {
-				message: text,
-			}; // Only include selectedDocumentIds if there are selected docs (filter out empty values)
-			const validSelectedDocs = selectedDocs.filter(
-				(id) => id && id.trim() !== ''
-			);
-			console.log(
-				'validSelectedDocs after filtering:',
-				validSelectedDocs
-			);
-			if (validSelectedDocs.length > 0) {
-				requestBody.selectedDocumentIds = validSelectedDocs;
-			}
-
-			// Extract and include page context if a file is open
-			if (selectedFile && pdfDocument) {
-				try {
-					const page = await pdfDocument.getPage(currentPage);
-					const textContent = await page.getTextContent();
-					const pageText = textContent.items
-						.map((item: TextItem | TextMarkedContent) => {
-							if ('str' in item) {
-								return item.str;
-							}
-							return '';
-						})
-						.join(' ');
-
-					requestBody.pageNumber = currentPage;
-					requestBody.pageContent = pageText;
-					console.log('Including page context:', {
-						pageNumber: currentPage,
-						pageContentLength: pageText.length,
-					});
-				} catch (err) {
-					console.error('Error extracting page text:', err);
-				}
-			}
-			console.log('requestBody:', requestBody);
-
-			const data = await apiRequest<{
-				data: {
-					message: {
-						id: string;
-						chatId: string;
-						turn: {
-							user: string;
-							assistant: string;
-						};
-						helpful: boolean | null;
-						totalTokens: number;
-						createdAt: string;
-					};
-					sourceDocuments: Array<{
-						id: string;
-						fileName: string;
-					}>;
-				};
-			}>(`chats/${chatId}/send-message`, 'POST', requestBody); // Replace temp message with real ones (convert from turn format)
-			setMessages((prev) => [
-				...prev.slice(0, -1),
-				{
-					id: data.data.message.id + '-user',
-					originalId: data.data.message.id,
-					content: data.data.message.turn.user,
-					role: 'user' as const,
-					tokens: 0,
-					createdAt: data.data.message.createdAt,
-				},
-				{
-					id: data.data.message.id + '-assistant',
-					originalId: data.data.message.id,
-					content: data.data.message.turn.assistant,
-					role: 'assistant' as const,
-					tokens: data.data.message.totalTokens,
-					createdAt: data.data.message.createdAt,
-				},
-			]);
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		} catch (error) {
-			setMessages((prev) => [
-				...prev,
-				{
-					content: 'Failed to send message',
-					role: 'assistant',
-					type: 'error',
-					originalMessage: text,
-				},
-			]);
-		} finally {
-			setIsSendingMessage(false);
-		}
-	};
 	return (
-		<main className="relative flex-1 h-full flex flex-col justify-center items-center pb-5">
-			<section className="font-mono text-md w-full rounded-t-xl h-15 shadow-[0_0.1px_10px_rgba(0,0,0,0.7)] p-4 flex items-center">
-				{chatTitle || 'Chat'}
+		<main className="relative flex-1 h-full flex flex-col justify-center items-center">
+			<section className="hidden md:flex font-mono text-md w-full rounded-t-xl h-15  p-4 items-center z-11 absolute top-0 bg-background/85 backdrop-blur-sm">
+				{chatTitle || 'New Chat'}
 			</section>
 			{/* Scrollable content area */}
-			<section className="mb-4 overflow-y-auto flex-1 w-full flex justify-center hidden-scrollbar md:custom-scrollbar">
+			<section className="overflow-y-auto flex-1 w-full flex justify-center hidden-scrollbar md:custom-scrollbar">
 				<div className="w-[78%] max-w-[1000px] flex flex-col gap-3">
+					<div className="h-12 shrink-0"></div>
+					{messages.length === 0 && !isLoading && (
+						<WelcomeScreen onHintClick={setComposerText} />
+					)}
 					{isLoading ? (
 						<div className="flex-1 flex items-center justify-center text-secondary-lighter">
 							{/* Loading messages... */}
 						</div>
 					) : (
-						messages.filter(Boolean).map((message, index) => {
-							if ('type' in message && message.type === 'error') {
-								const handleRetry = () => {
-									setMessages((prev) =>
-										prev.filter((_, i) => i !== index)
-									);
-									if (message.originalMessage) {
-										handleSend(message.originalMessage);
-									}
-								};
-								return (
-									<div
-										key={index}
-										className="w-fit px-3 py-2 self-start font-sans text-md text-foregrond border-1 border-red-500/50 flex gap-3 items-center rounded-xl bg-red-500/10"
-									>
-										{message.content}
-										<Button
-											variant={'outline'}
-											className="w-8 h-8 border-red-500/50 bg-red-500/15 hover:bg-red-500/25 hover:border-red-500/70 transition-colors rounded-full"
-											onClick={handleRetry}
-										>
-											<RotateCcw size={16} />
-										</Button>
-									</div>
-								);
-							}
-							if (message.role === 'user') {
-								return (
-									<div
-										key={message.id}
-										className="max-w-[70%] self-end font-sans text-md text-foregrond flex flex-col gap-2 mt-4"
-									>
-										<div className="bg-background p-3 rounded-lg">
-											<MarkdownRenderer
-												content={message.content}
-											/>
-										</div>
-									</div>
-								);
-							}
-
-							// assistant role (guaranteed to have id since we filtered errors)
-							const msg = message as Message;
-							return (
-								<div
-									key={msg.id}
-									className="max-w-[100%] self-start font-sans text-md text-foregrond gap-2"
-								>
-									<div className="p-2">
-										<MarkdownRenderer
-											content={msg.content}
-										/>
-									</div>
-									<div className="text-secondary-lighter flex justify-between items-center gap-6">
-										<button
-											onClick={() =>
-												handleCopyToClipboard(
-													message.content
-												)
-											}
-											className=" ml-2 transition-colors cursor-pointer hover:text-foreground"
-										>
-											<Copy size={16} />
-										</button>
-										<div className="flex items-center gap-3">
-											<p>Helpful?</p>
-											<button
-												onClick={() =>
-													msg.originalId &&
-													handleHelpfulClick(
-														msg.originalId
-													)
-												}
-												className={`transition-colors cursor-pointer ${
-													msg.originalId &&
-													messageFeedback[
-														msg.originalId
-													] === true
-														? 'text-primary'
-														: 'hover:text-primary'
-												}`}
-											>
-												<ThumbsUp size={16} />
-											</button>
-											<button
-												onClick={() =>
-													msg.originalId &&
-													handleNotHelpfulClick(
-														msg.originalId
-													)
-												}
-												className={`transition-colors cursor-pointer ${
-													msg.originalId &&
-													messageFeedback[
-														msg.originalId
-													] === false
-														? 'text-red-500'
-														: 'hover:text-red-500'
-												}`}
-											>
-												<ThumbsUp
-													size={16}
-													className="rotate-180"
-												/>
-											</button>
-										</div>
-									</div>
-								</div>
-							);
-						})
+						<MessageList
+							messages={messages}
+							messageFeedback={messageFeedback}
+							onHelpfulClick={handleHelpfulClick}
+							onNotHelpfulClick={handleNotHelpfulClick}
+							onRetry={handleRetry}
+						/>
 					)}
-					{isSendingMessage && (
-						<div className="max-w-[78%] self-start">
-							<div className="p-3 rounded-lg flex items-center gap-2">
-								{/* From Uiverse.io by elijahgummer */}
-								<div className="pinwheel">
-									<div className="pinwheel__line"></div>
-									<div className="pinwheel__line"></div>
-									<div className="pinwheel__line"></div>
-									<div className="pinwheel__line"></div>
-									<div className="pinwheel__line"></div>
-									<div className="pinwheel__line"></div>
-								</div>
-
-								<span className="text-sm text-secondary-lighter">
-									Thinking...
-								</span>
-							</div>
-						</div>
-					)}
+					<LoadingIndicator
+						ref={loadingRef}
+						isLoading={isSendingMessage}
+					/>
 					{/* Scroll anchor */}
-					<div ref={messagesEndRef} />
+					<div ref={messagesEndRef} /> {/* empty space */}
+					<div className="h-15 shrink-0"></div>
 				</div>
 			</section>
 
 			{/* Sticky composer at bottom */}
-			<MessageComposer onSend={handleSend} />
+			<MessageComposer
+				onSend={sendMessage}
+				text={composerText}
+				setText={setComposerText}
+				isSending={isSendingMessage}
+				isFirstVisit={!localStorage.getItem('visited')}
+			/>
 		</main>
 	);
 };
