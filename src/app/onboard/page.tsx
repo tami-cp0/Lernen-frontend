@@ -176,7 +176,7 @@ const OnboardingPage = () => {
 					<Image
 						src="/lernen-logo.svg"
 						alt="Lernen logo"
-						className="w-6"
+						className="w-4 md:w-6"
 						width={24}
 						height={24}
 					/>
@@ -187,13 +187,44 @@ const OnboardingPage = () => {
 				</p>
 			</section>
 			<section className="z-1 relative bg-secondary w-full h-full pb-10 [@media(min-height:768px)]:p-0 md:w-[45%] flex flex-col items-center gap-10">
-				<Image
-					src="/socials.svg"
-					alt=""
-					className="absolute top-5 right-5  md:top-10 md:right-20"
-					width={157}
-					height={26}
-				/>
+				<div className="absolute top-5 right-5  md:top-10 md:right-20 flex flex-row gap-4">
+					<a href="https://github.com/tami-cp0">
+						<Image
+							src="/github-logo.svg"
+							alt=""
+							className="w-4 md:w-[26px]"
+							width={26}
+							height={26}
+						/>
+					</a>
+					<a href="https://x.com/tami_cp0">
+						<Image
+							src="/twitter-logo.svg"
+							alt=""
+							className="w-4 md:w-[26px]"
+							width={26}
+							height={26}
+						/>
+					</a>
+					<a href="https://www.linkedin.com/in/tami-cp0">
+						<Image
+							src="/linkedin-logo.svg"
+							alt=""
+							className="w-4 md:w-[26px]"
+							width={26}
+							height={26}
+						/>
+					</a>
+					<a href="https://www.instagram.com/tami_cp0">
+						<Image
+							src="/instagram-logo.svg"
+							alt=""
+							className="w-4 md:w-[26px]"
+							width={26}
+							height={26}
+						/>
+					</a>
+				</div>
 				<section className="mt-25 [@media(min-height:768px)]:mt-40 w-[85%] md:w-[70%] flex flex-col gap-4 items-start">
 					<h1 className="text-foreground text-2xl font-semibold mb-[-10]">
 						{step === 1

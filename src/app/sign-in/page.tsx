@@ -142,6 +142,7 @@ const Page = () => {
 					<Image
 						src="/lernen-logo.svg"
 						alt="Lernen logo"
+						className="w-4 md:w-6"
 						width={24}
 						height={24}
 					/>
@@ -157,6 +158,7 @@ const Page = () => {
 						<Image
 							src="/github-logo.svg"
 							alt=""
+							className="w-4 md:w-[26px]"
 							width={26}
 							height={26}
 						/>
@@ -165,6 +167,7 @@ const Page = () => {
 						<Image
 							src="/twitter-logo.svg"
 							alt=""
+							className="w-4 md:w-[26px]"
 							width={26}
 							height={26}
 						/>
@@ -173,6 +176,7 @@ const Page = () => {
 						<Image
 							src="/linkedin-logo.svg"
 							alt=""
+							className="w-4 md:w-[26px]"
 							width={26}
 							height={26}
 						/>
@@ -181,6 +185,7 @@ const Page = () => {
 						<Image
 							src="/instagram-logo.svg"
 							alt=""
+							className="w-4 md:w-[26px]"
 							width={26}
 							height={26}
 						/>
