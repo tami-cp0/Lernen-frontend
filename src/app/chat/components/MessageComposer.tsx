@@ -39,7 +39,7 @@ export default function MessageComposer({
 	}, [isHintEnabled]);
 
 	return (
-		<section className="absolute bottom-2 md:bottom-3 w-[78%] max-w-[1000px] flex flex-col items-start gap-4 border-0 rounded-[28px] bg-background/85 backdrop-blur-sm px-2 py-3 shadow-md">
+		<section className="absolute bottom-4 w-[78%] max-w-[1000px] flex flex-col items-start gap-4 border-0 rounded-[28px] bg-background/85 backdrop-blur-sm px-2 py-3 shadow-md">
 			<section className="w-full flex items-center gap-4">
 				<Tooltip
 					open={isHintEnabled}
