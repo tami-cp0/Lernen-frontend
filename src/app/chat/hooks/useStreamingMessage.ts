@@ -219,25 +219,36 @@ export const useStreamingMessage = ({
 					...prev,
 					{
 						id: 'error-' + Date.now(),
-						content: 'Failed to receive response from server',
+						content:
+							'Please check your internet connection and try again',
 						role: 'assistant',
 						type: 'error',
 						originalMessage: text, // Store for retry
 					},
 				]);
 			};
-		} catch (error) {
+		} catch (error: unknown) {
 			// Handle errors during session creation (Step 1) or setup
 			console.error('Error sending message:', error);
 			eventSource?.close();
 			setIsSendingMessage(false);
+
+			// Determine error message
+			let errorMessage = 'Failed to send message';
+			if (
+				error instanceof TypeError &&
+				error.message === 'Failed to fetch'
+			) {
+				errorMessage =
+					'Please check your internet connection and try again';
+			}
 
 			// Show error message (no temp messages exist yet if session creation failed)
 			setMessages((prev) => [
 				...prev,
 				{
 					id: 'error-' + Date.now(),
-					content: 'Failed to send message',
+					content: errorMessage,
 					role: 'assistant',
 					type: 'error',
 					originalMessage: text,

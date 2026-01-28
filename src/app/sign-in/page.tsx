@@ -44,11 +44,17 @@ const Page = () => {
 			setIsLoading(false);
 		} catch (error: unknown) {
 			if (axios.isAxiosError(error)) {
-				setError(
-					error.response?.data?.message ||
-						error.message ||
-						'Something went wrong'
-				);
+				if (error.message === 'Network Error' || !error.response) {
+					setError(
+						'Please check your internet connection and try again'
+					);
+				} else {
+					setError(
+						error.response?.data?.message ||
+							error.message ||
+							'Something went wrong'
+					);
+				}
 			} else {
 				setError('Something went wrong');
 			}
@@ -107,11 +113,17 @@ const Page = () => {
 					} catch (e: unknown) {
 						setIsGoogleLoading(false);
 						if (axios.isAxiosError(e)) {
-							setError(
-								e.response?.data?.message ||
-									e.message ||
-									'Google authentication failed'
-							);
+							if (e.message === 'Network Error' || !e.response) {
+								setError(
+									'Please check your internet connection and try again'
+								);
+							} else {
+								setError(
+									e.response?.data?.message ||
+										e.message ||
+										'Google authentication failed'
+								);
+							}
 						} else {
 							setError('Google authentication failed');
 						}

@@ -327,9 +327,20 @@ export default function Sidebar() {
 						);
 					});
 				}
-			} catch (error) {
+			} catch (error: unknown) {
 				console.error(`Error uploading ${file.name}:`, error);
-				toast.error('Failed to upload files');
+
+				// Check if it's a network error
+				if (
+					error instanceof TypeError &&
+					error.message === 'Failed to fetch'
+				) {
+					toast.error(
+						'Please check your internet connection and try again'
+					);
+				} else {
+					toast.error('Failed to upload files');
+				}
 			} finally {
 				// Remove from uploading state
 				setUploadingFiles((prev) =>
