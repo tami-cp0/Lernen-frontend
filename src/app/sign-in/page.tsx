@@ -270,7 +270,7 @@ const Page = () => {
 							</p>
 						)}
 						{error && (
-							<p className="text-center text-sm bg-red-700/4 text-foreground w-full border-1 p-2 rounded-md border-red-600">
+							<p className="text-center text-sm bg-red-500/3 text-foreground w-full border-t-3 p-2 border-red-500/90">
 								{error}
 							</p>
 						)}

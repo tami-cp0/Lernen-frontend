@@ -15,7 +15,7 @@ type MessageListProps = {
 	messageFeedback: Record<string, boolean | null>; // Feedback state (thumbs up/down)
 	onHelpfulClick: (messageId: string) => void; // Handler for marking message as helpful
 	onNotHelpfulClick: (messageId: string) => void; // Handler for marking message as not helpful
-	onRetry: (originalMessage: string) => void; // Handler for retrying failed messages
+	onRetry: (originalMessage: string, messagesToRemove: string[]) => void; // Handler for retrying failed messages
 };
 
 export const MessageList = ({

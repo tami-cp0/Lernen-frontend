@@ -109,8 +109,11 @@ const ExistingChatPage = () => {
 		createChatIfNeeded();
 	}, [chatId, chatCreated]);
 
-	const handleRetry = (originalMessage: string) => {
-		sendMessage(originalMessage);
+	const handleRetry = (
+		originalMessage: string,
+		messagesToRemove: string[]
+	) => {
+		sendMessage(originalMessage, messagesToRemove);
 	};
 
 	return (

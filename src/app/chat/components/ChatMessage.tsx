@@ -36,6 +36,7 @@ export type ErrorMessage = {
 	role: 'assistant';
 	type: 'error';
 	originalMessage?: string; // Original message text for retry
+	userMessageId?: string; // ID of the user message that triggered this error (for removal on retry)
 };
 
 // Union type for all possible message displays
@@ -46,7 +47,7 @@ type ChatMessageProps = {
 	messageFeedback?: Record<string, boolean | null>; // Track thumbs up/down state
 	onHelpfulClick?: (messageId: string) => void;
 	onNotHelpfulClick?: (messageId: string) => void;
-	onRetry?: (originalMessage: string) => void; // Retry failed message
+	onRetry?: (originalMessage: string, messagesToRemove: string[]) => void; // Retry failed message with IDs to remove
 };
 
 export const ChatMessage = ({
@@ -66,20 +67,29 @@ export const ChatMessage = ({
 	if ('type' in message && message.type === 'error') {
 		const handleRetry = () => {
 			if (message.originalMessage && onRetry) {
-				onRetry(message.originalMessage);
+				// Collect IDs to remove: the error message itself and the user message that caused it
+				const messagesToRemove = [message.id];
+				if (message.userMessageId) {
+					messagesToRemove.push(message.userMessageId);
+				}
+				onRetry(message.originalMessage, messagesToRemove);
 			}
 		};
 
 		return (
-			<div className="w-fit px-3 py-2 self-start font-sans text-md text-foregrond border-1 border-red-500/50 flex gap-3 items-center rounded-xl bg-red-500/10">
-				{message.content}
-				<Button
-					variant={'outline'}
-					className="w-8 h-8 border-red-500/50 bg-red-500/15 hover:bg-red-500/25 hover:border-red-500/70 transition-colors rounded-full"
-					onClick={handleRetry}
-				>
-					<RotateCcw size={16} />
-				</Button>
+			<div className="max-w-[70%] self-start font-sans text-md text-foreground flex flex-col gap-2">
+				<div className="p-3 border-t-3 border-red-500/90 bg-red-500/2 flex items-center gap-3">
+					<div className="flex-1">{message.content}</div>
+					<Button
+						variant={'ghost'}
+						size={'sm'}
+						className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-700/10 shrink-0"
+						onClick={handleRetry}
+					>
+						<RotateCcw size={14} className="mr-1" />
+						Retry
+					</Button>
+				</div>
 			</div>
 		);
 	}

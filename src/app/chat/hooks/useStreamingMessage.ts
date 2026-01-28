@@ -57,8 +57,11 @@ export const useStreamingMessage = ({
 	 * 4. Connect to SSE stream (Step 2)
 	 * 5. Update temp message as chunks arrive
 	 * 6. Replace temp messages with final messages on completion
+	 *
+	 * @param text - The message text to send
+	 * @param messagesToRemove - Optional array of message IDs to remove (used for retry to clear failed turn)
 	 */
-	const sendMessage = async (text: string) => {
+	const sendMessage = async (text: string, messagesToRemove?: string[]) => {
 		// Add user message to UI IMMEDIATELY (before any async operations)
 		const userMsgId = 'user-' + Date.now();
 		const userMsg: Message = {
@@ -68,7 +71,16 @@ export const useStreamingMessage = ({
 			tokens: 0,
 			createdAt: new Date().toISOString(),
 		};
-		setMessages((prev) => [...prev, userMsg]);
+
+		// If this is a retry, remove the failed turn (user message + error) before adding new message
+		if (messagesToRemove && messagesToRemove.length > 0) {
+			setMessages((prev) => [
+				...prev.filter((msg) => !messagesToRemove.includes(msg.id)),
+				userMsg,
+			]);
+		} else {
+			setMessages((prev) => [...prev, userMsg]);
+		}
 
 		// Now start the loading indicator and async operations
 		setIsSendingMessage(true);
@@ -224,6 +236,7 @@ export const useStreamingMessage = ({
 						role: 'assistant',
 						type: 'error',
 						originalMessage: text, // Store for retry
+						userMessageId: userMsgId, // Store user message ID for removal on retry
 					},
 				]);
 			};
@@ -252,6 +265,7 @@ export const useStreamingMessage = ({
 					role: 'assistant',
 					type: 'error',
 					originalMessage: text,
+					userMessageId: userMsgId, // Store user message ID for removal on retry
 				},
 			]);
 		}
