@@ -19,6 +19,7 @@ declare global {
 const Page = () => {
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(false);
+	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
 	const [value, setValue] = useState('');
 	const [error, setError] = useState<string | null>(null);
@@ -84,6 +85,9 @@ const Page = () => {
 							)
 						).data;
 
+						// Set loading state after receiving response
+						setIsGoogleLoading(true);
+
 						if (response.data?.onboarded) {
 							await setAuthTokens(
 								response.data.accessToken!,
@@ -101,6 +105,7 @@ const Page = () => {
 							return;
 						}
 					} catch (e: unknown) {
+						setIsGoogleLoading(false);
 						if (axios.isAxiosError(e)) {
 							setError(
 								e.response?.data?.message ||
@@ -272,15 +277,22 @@ const Page = () => {
 						variant={'outline'}
 						className="w-full"
 						onClick={handleGoogleClick}
+						disabled={isGoogleLoading}
 					>
-						<Image
-							src="/google.svg"
-							alt="google icon"
-							className="w-4"
-							width={16}
-							height={16}
-						/>
-						Google
+						{isGoogleLoading ? (
+							<Loader2Icon className="h-4 w-4 animate-spin" />
+						) : (
+							<>
+								<Image
+									src="/google.svg"
+									alt="google icon"
+									className="w-4"
+									width={16}
+									height={16}
+								/>
+								Google
+							</>
+						)}
 					</Button>
 				</section>
 			</section>

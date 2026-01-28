@@ -357,7 +357,8 @@ export default function Sidebar() {
 							Unavailable
 						</DialogTitle>
 						<DialogDescription className="text-start">
-							For the best experience, this feature is available on larger screens.
+							For the best experience, this feature is available
+							on larger screens.
 						</DialogDescription>
 					</DialogHeader>
 				</DialogContent>
@@ -428,7 +429,7 @@ export default function Sidebar() {
 								onClick={() =>
 									setIsSidebarExpanded(!isSidebarExpanded)
 								}
-								className="md:hidden hover:bg-[#252525] w-8 h-8 cursor-e-resize absolute left-5 md:left-0 md:relative"
+								className="md:hidden hover:bg-[#252525] w-8 h-8 cursor-e-resize absolute left-5 md:left-0 md:relative z-20"
 							>
 								<Menu
 									size={20}
