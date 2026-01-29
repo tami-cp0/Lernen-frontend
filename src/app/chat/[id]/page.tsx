@@ -10,6 +10,7 @@ import { MessageList } from '../components/MessageList';
 import { LoadingIndicator } from '../components/LoadingIndicator';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useStreamingMessage } from '../hooks/useStreamingMessage';
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 
 const ExistingChatPage = () => {
 	const params = useParams();
@@ -23,6 +24,7 @@ const ExistingChatPage = () => {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const loadingRef = useRef<HTMLDivElement>(null);
 	const [composerText, setComposerText] = useState('');
+	const keyboardOffset = useKeyboardOffset();
 
 	// Custom hooks for state and logic
 	const {
@@ -158,6 +160,7 @@ const ExistingChatPage = () => {
 				setText={setComposerText}
 				isSending={isSendingMessage}
 				isFirstVisit={!localStorage.getItem('visited')}
+				keyboardOffset={keyboardOffset}
 			/>
 		</main>
 	);
