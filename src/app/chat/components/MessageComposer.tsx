@@ -42,9 +42,9 @@ export default function MessageComposer({
 
 	return (
 		<section
-			className="absolute bottom-4 w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 border-0 rounded-[28px] bg-background/85 backdrop-blur-sm px-2 py-3 shadow-md"
+			className="absolute bottom-2 w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 border-0 rounded-[28px] bg-background/75 backdrop-blur-sm px-2 py-3 shadow-md"
 			style={{
-				bottom: keyboardOffset ? `${keyboardOffset + 16}px` : '16px',
+				bottom: keyboardOffset ? `${keyboardOffset + 8}px` : '8px',
 			}}
 		>
 			<section className="w-full flex items-center gap-4">
