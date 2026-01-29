@@ -16,7 +16,7 @@ function ChatLayoutContent({ children }: { children: ReactNode }) {
 	const { isSidebarExpanded, setIsSidebarExpanded } = useSidebar();
 
 	return (
-		<div className="h-screen w-screen flex flex-row">
+		<div className="h-screen-safe w-screen flex flex-row">
 			<MobileHeader />
 			<Sidebar />
 

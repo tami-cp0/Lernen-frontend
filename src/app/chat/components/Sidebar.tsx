@@ -377,7 +377,7 @@ export default function Sidebar() {
 			<aside
 				className={`z-10 bg-background relative flex flex-col transition-none md:transition-all duration-300 ${
 					isSidebarExpanded
-						? 'w-70 max-w-70 h-screen justify-between items-start px-4'
+						? 'w-70 max-w-70 h-screen-safe justify-between items-start px-4'
 						: 'md:w-[50px] md:h-screen items-center'
 				}`}
 			>

@@ -146,7 +146,7 @@ const Page = () => {
 	};
 
 	return (
-		<main className="relative w-screen h-screen flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
+		<main className="relative w-screen h-screen-safe flex justify-end bg-[url('/Abstract-Ripple-Effect.png')] bg-cover bg-center">
 			{/* Google Sign-In configuration */}
 			<Script
 				src="https://accounts.google.com/gsi/client"

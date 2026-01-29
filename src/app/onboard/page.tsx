@@ -123,7 +123,7 @@ const OnboardingPage = () => {
 
 	if (isVerifying) {
 		return (
-			<div className="w-screen h-screen bg-secondary flex items-center justify-center">
+			<div className="w-screen h-screen-safe bg-secondary flex items-center justify-center">
 				<Loader2Icon className="h-4 w-4 animate-spin" />
 			</div>
 		);
@@ -170,7 +170,7 @@ const OnboardingPage = () => {
 	}
 
 	return (
-		<main className="relative w-full min-h-screen [@media(min-height:768px)]:h-screen flex justify-end bg-secondary md:bg-[url('/Abstract-Ripple-Effect.png')] md:bg-cover md:bg-center">
+		<main className="relative w-full min-h-screen-safe [@media(min-height:768px)]:h-screen-safe flex justify-end bg-secondary md:bg-[url('/Abstract-Ripple-Effect.png')] md:bg-cover md:bg-center">
 			<section className="z-2">
 				<div className="absolute top-5 left-5 md:top-10 md:left-10 flex items-center gap-3">
 					<Image

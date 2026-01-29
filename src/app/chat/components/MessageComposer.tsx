@@ -39,7 +39,7 @@ export default function MessageComposer({
 	}, [isHintEnabled]);
 
 	return (
-		<section className="absolute bottom-4 w-[78%] max-w-[1000px] flex flex-col items-start gap-4 border-0 rounded-[28px] bg-background/85 backdrop-blur-sm px-2 py-3 shadow-md">
+		<section className="absolute bottom-4 w-[90%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 border-0 rounded-[28px] bg-background/85 backdrop-blur-sm px-2 py-2 md:py-3 shadow-md">
 			<section className="w-full flex items-center gap-4">
 				<Tooltip
 					open={isHintEnabled}
@@ -74,13 +74,13 @@ export default function MessageComposer({
 							document.getElementById('send-btn')!.click();
 						}
 					}}
-					className="resize-none z-2 flex-1 h-7 max-h-[200px] overflow-y-auto text-foreground placeholder:text-secondary-lighter focus:outline-none focus:ring-0 appearance-none mr-11 ml-2 hidden-scrollbar md:custom-scrollbar"
+					className="resize-none z-2 flex-1 text-sm md:text-md max-h-[200px] overflow-y-auto text-foreground placeholder:text-secondary-lighter focus:outline-none focus:ring-0 appearance-none mr-11 ml-2 hidden-scrollbar md:custom-scrollbar"
 				/>
 
 				<button
 					id="send-btn"
 					onClick={handleClick}
-					className={`absolute right-1 h-9 w-9 rounded-full flex justify-center items-center bg-primary transition-opacity ${
+					className={`absolute right-1 h-7 w-7 md:h-9 md:w-9 rounded-full flex justify-center items-center bg-primary transition-opacity ${
 						isSending
 							? 'opacity-60 cursor-not-allowed'
 							: 'cursor-pointer'
