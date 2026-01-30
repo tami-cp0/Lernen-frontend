@@ -133,7 +133,7 @@ const ExistingChatPage = () => {
 			</section>
 			{/* Scrollable content area */}
 			<section className="overflow-y-auto flex-1 w-full flex justify-center hidden-scrollbar md:custom-scrollbar">
-				<div className="w-[78%] max-w-[1000px] flex flex-col gap-3">
+				<div className="w-[90%] md:w-[78%] max-w-[1000px] flex flex-col gap-3">
 					<div className="h-12 shrink-0"></div>
 					{messages.length === 0 && !isLoading && (
 						<WelcomeScreen onHintClick={setComposerText} />
