@@ -11,6 +11,7 @@ import { LoadingIndicator } from '../components/LoadingIndicator';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useStreamingMessage } from '../hooks/useStreamingMessage';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
+import { useSidebar } from '../context/SidebarContext';
 
 const ExistingChatPage = () => {
 	const params = useParams();
@@ -25,6 +26,7 @@ const ExistingChatPage = () => {
 	const loadingRef = useRef<HTMLDivElement>(null);
 	const [composerText, setComposerText] = useState('');
 	const keyboardOffset = useKeyboardOffset();
+	const { setIsSidebarExpanded } = useSidebar();
 
 	// Custom hooks for state and logic
 	const {
@@ -59,7 +61,13 @@ const ExistingChatPage = () => {
 	useEffect(() => {
 		setSelectedFile(null);
 		setSelectedDocs([]);
-	}, [chatId, setSelectedFile, setSelectedDocs]);
+
+		// Close sidebar on mobile/tablet when chat loads
+		const isBelowLg = window.matchMedia('(max-width: 1023px)').matches;
+		if (isBelowLg) {
+			setIsSidebarExpanded(false);
+		}
+	}, [chatId, setSelectedFile, setSelectedDocs, setIsSidebarExpanded]);
 
 	// Auto-scroll to bottom when messages change or when sending starts
 	useEffect(() => {
