@@ -21,6 +21,57 @@ const FileView = () => {
 	// Configure PDF.js worker on client side only
 	useEffect(() => {
 		if (typeof window !== 'undefined') {
+			// Polyfill DOMMatrix for browsers that don't support it
+			if (typeof DOMMatrix === 'undefined') {
+				(window as any).DOMMatrix = class DOMMatrix {
+					m: number[][] = [];
+					constructor(init?: string | number[]) {
+						if (typeof init === 'string') {
+							const values =
+								init
+									.match(/[+-]?([0-9]*[.])?[0-9]+/g)
+									?.map(Number) || [];
+							this.m = [
+								[
+									values[0] || 1,
+									values[1] || 0,
+									0,
+									values[4] || 0,
+								],
+								[
+									values[2] || 0,
+									values[3] || 1,
+									0,
+									values[5] || 0,
+								],
+								[0, 0, 1, 0],
+								[0, 0, 0, 1],
+							];
+						} else if (Array.isArray(init)) {
+							this.m = [
+								[init[0] || 1, init[1] || 0, 0, init[4] || 0],
+								[init[2] || 0, init[3] || 1, 0, init[5] || 0],
+								[0, 0, 1, 0],
+								[0, 0, 0, 1],
+							];
+						} else {
+							this.m = [
+								[1, 0, 0, 0],
+								[0, 1, 0, 0],
+								[0, 0, 1, 0],
+								[0, 0, 0, 1],
+							];
+						}
+					}
+					inverse() {
+						return new DOMMatrix();
+					}
+					transformPoint(point: any) {
+						return point;
+					}
+				};
+			}
+
 			import('react-pdf').then((module) => {
 				module.pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${module.pdfjs.version}/build/pdf.worker.min.mjs`;
 			});
