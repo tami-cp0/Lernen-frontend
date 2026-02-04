@@ -1,8 +1,7 @@
 'use client';
 import MessageComposer from '../components/MessageComposer';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { apiRequest } from '@/lib/api-client';
 import { useSelectedDocs } from '../context/SelectedDocsContext';
 import { useFileView } from '../context/FileViewContext';
 import { WelcomeScreen } from '../components/WelcomeScreen';
@@ -12,18 +11,24 @@ import { useChatMessages } from '../hooks/useChatMessages';
 import { useStreamingMessage } from '../hooks/useStreamingMessage';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { useSidebar } from '../context/SidebarContext';
+import { useChatContext } from '../context/ChatContext';
 
 const ExistingChatPage = () => {
 	const params = useParams();
-	const chatId = params.id as string;
+	const paramId = params.id as string;
+	const isNewChat = paramId === 'new';
+
+	// Use the chat context for chat creation and state
+	const { actualChatId, chatCreated, createChatIfNeeded } = useChatContext();
+	const chatId = actualChatId || paramId;
+
 	const { selectedDocs, setSelectedDocs } = useSelectedDocs();
 	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
 		useFileView();
 
-	const [chatCreated, setChatCreated] = useState(false);
-	const isCreatingChat = useRef(false);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const loadingRef = useRef<HTMLDivElement>(null);
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const [composerText, setComposerText] = useState('');
 	const keyboardOffset = useKeyboardOffset();
 	const { setIsSidebarExpanded } = useSidebar();
@@ -34,6 +39,9 @@ const ExistingChatPage = () => {
 		setMessages,
 		chatTitle,
 		isLoading,
+		isLoadingMore,
+		hasMore,
+		loadMoreMessages,
 		messageFeedback,
 		handleHelpfulClick,
 		handleNotHelpfulClick,
@@ -46,6 +54,8 @@ const ExistingChatPage = () => {
 		pdfDocument,
 		currentPage,
 		setMessages,
+		isNewChat,
+		createChat: createChatIfNeeded,
 	});
 
 	// show hint for message composer if the user hasnt seen it before
@@ -80,51 +90,39 @@ const ExistingChatPage = () => {
 		}
 	}, [messages, isSendingMessage]);
 
-	// Create chat if it doesn't exist (when chatId is a new UUID)
+	// Infinite scroll: load more messages when scrolling near the top
 	useEffect(() => {
-		const createChatIfNeeded = async () => {
-			// Prevent duplicate calls (React Strict Mode calls effects twice)
-			if (chatCreated || isCreatingChat.current) return;
+		const scrollContainer = scrollContainerRef.current;
+		if (!scrollContainer || !hasMore || isLoadingMore) return;
 
-			isCreatingChat.current = true;
-
-			try {
-				// Try to create the chat with the provided chatId
-				await apiRequest('chats/create', 'POST', { chatId });
-				// Small delay to ensure backend has processed the creation
-				await new Promise((resolve) => setTimeout(resolve, 100));
-				setChatCreated(true);
-			} catch (error) {
-				// Check if it's a duplicate key error (chat already exists)
-				const err = error as {
-					response?: { status?: number };
-					message?: string;
-				};
-				if (
-					err?.response?.status === 409 ||
-					err?.message?.includes('already exists') ||
-					err?.message?.includes('Conflict')
-				) {
-					// Silently proceed if chat already exists
-					setChatCreated(true);
-				} else {
-					console.error('Error creating chat:', error);
-					setChatCreated(true); // Proceed anyway to try fetching
-				}
-			} finally {
-				isCreatingChat.current = false;
+		const handleScroll = () => {
+			// Check if user scrolled to within 200px of the top
+			if (scrollContainer.scrollTop < 200 && hasMore && !isLoadingMore) {
+				// Store current scroll height before loading more
+				const previousScrollHeight = scrollContainer.scrollHeight;
+				
+				loadMoreMessages().then(() => {
+					// After loading, maintain scroll position
+					// (prevent jumping to top when new messages are prepended)
+					requestAnimationFrame(() => {
+						const newScrollHeight = scrollContainer.scrollHeight;
+						const scrollDiff = newScrollHeight - previousScrollHeight;
+						scrollContainer.scrollTop = scrollContainer.scrollTop + scrollDiff;
+					});
+				});
 			}
 		};
 
-		createChatIfNeeded();
-	}, [chatId, chatCreated]);
+		scrollContainer.addEventListener('scroll', handleScroll);
+		return () => scrollContainer.removeEventListener('scroll', handleScroll);
+	}, [hasMore, isLoadingMore, loadMoreMessages]);
 
-	const handleRetry = (
+	const handleRetry = useCallback((
 		originalMessage: string,
 		messagesToRemove: string[]
 	) => {
 		sendMessage(originalMessage, messagesToRemove);
-	};
+	}, [sendMessage]);
 
 	return (
 		<main className="relative flex-1 h-full flex flex-col justify-center items-center">
@@ -132,10 +130,21 @@ const ExistingChatPage = () => {
 				{chatTitle || 'New Chat'}
 			</section>
 			{/* Scrollable content area */}
-			<section className="overflow-y-auto flex-1 w-full flex justify-center hidden-scrollbar md:custom-scrollbar">
+			<section 
+				ref={scrollContainerRef}
+				className="overflow-y-auto flex-1 w-full flex justify-center hidden-scrollbar md:custom-scrollbar"
+			>
 				<div className="w-[90%] md:w-[78%] max-w-[1000px] flex flex-col gap-3">
 					<div className="h-12 shrink-0"></div>
-					{messages.length === 0 && !isLoading && (
+					
+					{/* Loading indicator for older messages at top */}
+					{isLoadingMore && (
+						<div className="flex justify-center py-4">
+							<div className="text-sm text-muted-foreground">Loading older messages...</div>
+						</div>
+					)}
+					
+					{isNewChat && (
 						<WelcomeScreen onHintClick={setComposerText} />
 					)}
 					{isLoading ? (
@@ -167,7 +176,7 @@ const ExistingChatPage = () => {
 				text={composerText}
 				setText={setComposerText}
 				isSending={isSendingMessage}
-				isFirstVisit={!localStorage.getItem('visited')}
+				isFirstVisit={typeof window !== 'undefined' && !localStorage.getItem('visited')}
 				keyboardOffset={keyboardOffset}
 			/>
 		</main>

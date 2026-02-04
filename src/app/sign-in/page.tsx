@@ -75,7 +75,6 @@ const Page = () => {
 				redirect_uri: 'postmessage',
 				callback: async (res: { code?: string; error?: string }) => {
 					try {
-						console.log(res);
 						const response: {
 							message: string;
 							data: {

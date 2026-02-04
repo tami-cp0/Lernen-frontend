@@ -108,9 +108,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 		const scrollHeight = container.scrollHeight;
 		const clientHeight = container.clientHeight;
 
-		// Load next page when near bottom (within 500px)
+		// Load next page when near bottom (within 2000px)
 		if (
-			scrollHeight - scrollTop - clientHeight < 1000 &&
+			scrollHeight - scrollTop - clientHeight < 2000 &&
 			loadedPages.size < numPages
 		) {
 			const nextPage = loadedPages.size + 1;

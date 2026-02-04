@@ -81,7 +81,7 @@ export default function MessageComposer({
 							document.getElementById('send-btn')!.click();
 						}
 					}}
-					className="resize-none z-2 flex-1 text-sm md:text-md max-h-[200px] overflow-y-auto text-foreground placeholder:text-secondary-lighter focus:outline-none focus:ring-0 appearance-none mr-11 ml-2 hidden-scrollbar md:custom-scrollbar"
+					className="resize-none z-2 flex-1 text-md md:text-md max-h-[200px] overflow-y-auto text-foreground placeholder:text-secondary-lighter focus:outline-none focus:ring-0 appearance-none mr-11 ml-2 hidden-scrollbar md:custom-scrollbar"
 				/>
 
 				<button

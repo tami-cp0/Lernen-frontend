@@ -29,6 +29,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const fetchUser = async () => {
 			try {
+				// Fetch user profile - this happens in parallel with other providers
 				const userData = await apiRequest<{ data: { user: User } }>(
 					'users/profile'
 				);

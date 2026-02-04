@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser } from '../context/UserContext';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -21,6 +21,7 @@ import Image from 'next/image';
 import { useFileView } from '../context/FileViewContext';
 import { useSelectedDocs } from '../context/SelectedDocsContext';
 import { useSidebar } from '../context/SidebarContext';
+import { useChatContext } from '../context/ChatContext';
 import { toast } from 'sonner';
 import {
 	Tooltip,
@@ -68,6 +69,7 @@ export default function Sidebar() {
 	const { selectedFile, toggleFile } = useFileView();
 	const { selectedDocs, toggleDoc, addDoc } = useSelectedDocs();
 	const { isSidebarExpanded, setIsSidebarExpanded } = useSidebar();
+	const { createChatIfNeeded } = useChatContext();
 	const [currentChat, setCurrentChat] = useState<string | null>(null);
 	const [chats, setChats] = useState<Chat[]>([]);
 	const { user } = useUser();
@@ -78,52 +80,37 @@ export default function Sidebar() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [isDocDialogOpen, setIsDocDialogOpen] = useState<boolean>(false);
 
-	// Fetch chats on mount
-	useEffect(() => {
-		const fetchChats = async () => {
-			try {
-				const chatsData = await apiRequest<
-					{ data: { chats: Chat[] } } | { chats: Chat[] }
-				>('chats');
-				const chatsArray =
-					'data' in chatsData
-						? chatsData.data.chats
-						: chatsData.chats;
-				setChats(chatsArray || []);
-			} catch (error) {
-				console.error('Error fetching sidebar chats:', error);
-				setChats([]);
-			}
-		};
-		fetchChats();
+	// Consolidated fetch function to avoid duplication
+	const fetchChats = useCallback(async () => {
+		try {
+			const chatsData = await apiRequest<
+				{ data: { chats: Chat[] } } | { chats: Chat[] }
+			>('chats');
+			const chatsArray =
+				'data' in chatsData
+					? chatsData.data.chats
+					: chatsData.chats;
+			setChats(chatsArray || []);
+		} catch (error) {
+			console.error('Error fetching sidebar chats:', error);
+			setChats([]);
+		}
 	}, []);
 
-	// Refetch chats when pathname changes (new chat created or navigated)
+	// Fetch chats on mount and when chat is created
 	useEffect(() => {
-		const fetchChats = async () => {
-			try {
-				const chatsData = await apiRequest<
-					{ data: { chats: Chat[] } } | { chats: Chat[] }
-				>('chats');
-				console.log('Refetched chats data:', chatsData);
+		fetchChats();
 
-				// Handle both response structures
-				const chatsArray =
-					'data' in chatsData
-						? chatsData.data.chats
-						: chatsData.chats;
-				console.log('Refetched chats array:', chatsArray);
-				setChats(chatsArray || []);
-			} catch (error) {
-				console.error('Error fetching chats:', error);
-			}
-		};
-
-		// Only refetch if we're on a chat page
-		if (pathname?.startsWith('/chat/')) {
+		// Listen for chat-created events to refetch chats list
+		const handleChatCreated = () => {
 			fetchChats();
-		}
-	}, [pathname]);
+		};
+		window.addEventListener('chat-created', handleChatCreated);
+
+		return () => {
+			window.removeEventListener('chat-created', handleChatCreated);
+		};
+	}, [fetchChats]);
 
 	// Fetch documents when chat ID changes
 	useEffect(() => {
@@ -133,11 +120,12 @@ export default function Sidebar() {
 			if (chatId && chatId !== 'new') {
 				setCurrentChat(chatId);
 				try {
+					// Use documents-only endpoint instead of fetching full messages
 					const data = await apiRequest<{
 						data: {
 							documents: Document[];
 						};
-					}>(`chats/${chatId}/messages`);
+					}>(`chats/${chatId}/documents`);
 					setDocuments(data.data.documents || []);
 				} catch (error) {
 					console.error('Error fetching documents:', error);
@@ -218,8 +206,19 @@ export default function Sidebar() {
 		const files = event.target.files;
 		if (!files || files.length === 0) return;
 
-		const chatId = pathname?.match(/\/chat\/([^\/]+)/)?.[1];
-		if (!chatId || chatId === 'new') {
+		let chatId = pathname?.match(/\/chat\/([^\/]+)/)?.[1];
+
+		// If on 'new' chat, create the chat first
+		if (chatId === 'new') {
+			const newChatId = await createChatIfNeeded();
+			if (!newChatId) {
+				toast.error('Failed to create chat');
+				return;
+			}
+			chatId = newChatId;
+		}
+
+		if (!chatId) {
 			toast.error('Please create a chat first');
 			return;
 		}
@@ -299,12 +298,12 @@ export default function Sidebar() {
 						)
 					);
 
-					// Refresh documents list
+					// Refresh documents list using documents-only endpoint
 					const data = await apiRequest<{
 						data: {
 							documents: Document[];
 						};
-					}>(`chats/${chatId}/messages`);
+					}>(`chats/${chatId}/documents`);
 					setDocuments(data.data.documents || []);
 					currentDocCount = data.data.documents.length;
 
@@ -383,12 +382,12 @@ export default function Sidebar() {
 			>
 				<div className="w-full">
 					{isSidebarExpanded ? (
-						<div className="flex flex-row items-center justify-between py-3 mb-6 w-full">
+						<div className="flex flex-row items-center justify-between py-3 mb-6 w-full border-2">
 							<Image
 								src="/lernen-logo.svg"
 								alt="Lernen logo"
-								width={25}
-								height={25}
+								width={30}
+								height={30}
 							/>
 
 							{/* button for mobile */}
@@ -408,17 +407,16 @@ export default function Sidebar() {
 								<TooltipTrigger className="hidden md:block">
 									<Button
 										variant="ghost"
-										size="sm"
+										size="icon"
 										onClick={() =>
 											setIsSidebarExpanded(
 												!isSidebarExpanded
 											)
 										}
-										className="hover:bg-[#252525] w-8 h-8 cursor-e-resize"
+										className="hover:bg-[#252525] cursor-e-resize"
 									>
 										<PanelsTopLeft
-											size={20}
-											className="text-[#777777]"
+											className="text-[#777777] size-5"
 										/>
 									</Button>
 								</TooltipTrigger>
@@ -453,7 +451,7 @@ export default function Sidebar() {
 								<TooltipTrigger className="hidden md:block">
 									<Button
 										variant="ghost"
-										size="sm"
+										size="icon"
 										onClick={() =>
 											setIsSidebarExpanded(
 												!isSidebarExpanded
@@ -462,8 +460,7 @@ export default function Sidebar() {
 										className="hover:bg-[#252525] w-8 h-8 cursor-e-resize"
 									>
 										<PanelsTopLeft
-											size={20}
-											className="text-[#777777]"
+											className="text-[#777777] size-5"
 										/>
 									</Button>
 								</TooltipTrigger>
@@ -480,9 +477,8 @@ export default function Sidebar() {
 				</div>
 				<Button
 					onClick={() => {
-						// Generate UUID and navigate directly
-						const chatId = crypto.randomUUID();
-						router.push(`/chat/${chatId}`);
+						// Navigate to 'new' - chat will be created when first message is sent or doc uploaded
+						router.push(`/chat/new`);
 					}}
 					variant={'outline'}
 					className="hover:bg-background h-fit border-0 bg-background justify-start items-center px-0! my-0"
@@ -490,7 +486,7 @@ export default function Sidebar() {
 					{isSidebarExpanded ? (
 						<>
 							<FaPlus className="rounded-full bg-primary fill-background size-4 p-0.5 cursor-pointer" />
-							<span className="text-sm text-primary font-mono">
+							<span className="text-md text-primary font-mono">
 								New chat
 							</span>
 						</>
@@ -544,7 +540,7 @@ export default function Sidebar() {
 								strokeWidth={2}
 								className="h-4"
 							/>
-							<p className="shrink-0">Add sources</p>
+							<p className="shrink-0 text-md">Add sources</p>
 						</div>
 						{uploadingFiles.map((fileInfo) => (
 							<div
@@ -590,17 +586,15 @@ export default function Sidebar() {
 													)
 												);
 
-												// Refresh documents list
-												const data = await apiRequest<{
-													data: {
-														documents: Document[];
-													};
-												}>(`chats/${chatId}/messages`);
-												setDocuments(
-													data.data.documents || []
-												);
-
-												// Also remove from selected docs if it was selected
+											// Refresh documents list using documents-only endpoint
+											const data = await apiRequest<{
+												data: {
+													documents: Document[];
+												};
+											}>(`chats/${chatId}/documents`);
+											setDocuments(
+												data.data.documents || []
+											);												// Also remove from selected docs if it was selected
 												if (
 													selectedDocs.includes(
 														fileInfo.documentId
@@ -720,7 +714,7 @@ export default function Sidebar() {
 										href={`/chat/${chat.id}`}
 										onClick={() => setCurrentChat(chat.id)}
 										className={`
-										text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis
+										text-foreground font-sans text-md whitespace-nowrap overflow-hidden text-ellipsis
 										cursor-pointer mt-1 rounded-md px-3 py-1.5 w-[95%] block
 										${currentChat === chat.id ? 'bg-[#2e2e2e]' : 'hover:bg-[#252525]'}
 									`}

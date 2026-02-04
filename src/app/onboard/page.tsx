@@ -49,7 +49,6 @@ const OnboardingPage = () => {
 			const { hasTokens } = await res.json();
 
 			if (hasTokens) {
-				console.log('Already signed in, redirecting to home...');
 				router.replace('/chat');
 				return;
 			}
@@ -59,7 +58,6 @@ const OnboardingPage = () => {
 					return;
 				}
 
-				console.log('Verifying token...');
 				const response: {
 					message: string;
 					data: {
@@ -96,18 +94,13 @@ const OnboardingPage = () => {
 					response.data.accessToken!,
 					response.data.refreshToken!
 				);
-				console.log(
-					'Token verified successfully, redirecting to home...'
-				);
 				router.replace('/chat');
 				return;
 			} catch (error) {
 				console.error('Token verification failed:', error);
 
 				if (axios.isAxiosError(error)) {
-					console.log(
-						'Invalid/expired/used token, redirecting to sign-in...'
-					);
+					// Invalid/expired/used token, redirecting to sign-in...
 					router.replace('/sign-in');
 					return;
 				}

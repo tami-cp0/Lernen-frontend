@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '@/lib/api-client';
 import type { DisplayMessage } from '../components/ChatMessage';
 
@@ -10,7 +10,8 @@ import type { DisplayMessage } from '../components/ChatMessage';
  * the API format to display format, and managing user feedback (helpful/not helpful).
  *
  * Features:
- * - Fetches and displays existing chat messages
+ * - Fetches and displays existing chat messages with pagination
+ * - Infinite scroll: loads older messages when user scrolls to top
  * - Converts backend "turn" format (user + assistant pairs) into individual display messages
  * - Manages message feedback state
  * - Handles feedback submission to backend
@@ -18,7 +19,7 @@ import type { DisplayMessage } from '../components/ChatMessage';
  *
  * @param chatId - UUID of the chat to fetch messages for
  * @param chatCreated - Whether the chat has been created in the backend
- * @returns Object containing messages, chat title, loading state, and feedback handlers
+ * @returns Object containing messages, chat title, loading state, pagination, and feedback handlers
  */
 
 export const useChatMessages = (chatId: string, chatCreated: boolean) => {
@@ -26,8 +27,14 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 	const [messages, setMessages] = useState<DisplayMessage[]>([]);
 	// Chat title (generated from first message or "Chat" for new chats)
 	const [chatTitle, setChatTitle] = useState<string>('');
-	// Loading state while fetching messages
-	const [isLoading, setIsLoading] = useState(true);
+	// Loading state while fetching initial messages - false for 'new' chats since there's nothing to load
+	const [isLoading, setIsLoading] = useState(chatId !== 'new');
+	// Loading state for fetching older messages (infinite scroll)
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	// Track if there are more messages to load
+	const [hasMore, setHasMore] = useState(false);
+	// Current page for pagination
+	const [currentPage, setCurrentPage] = useState(1);
 	// Track user feedback (thumbs up/down) for each message
 	const [messageFeedback, setMessageFeedback] = useState<
 		Record<string, boolean | null>
@@ -35,18 +42,20 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 
 	// Fetch chat messages when chat is created
 	useEffect(() => {
-		if (!chatCreated) return; // Wait until chat exists in backend
+		// Skip fetching for 'new' chats - they have no messages yet
+		if (!chatCreated || chatId === 'new') {
+			setIsLoading(false);
+			return;
+		}
 
 		const fetchChatMessages = async () => {
 			try {
 				setIsLoading(true);
+				
+				// Fetch messages with pagination - only get messages, not full chat data
+				// This is much more efficient than fetching entire chat with documents
 				const data = await apiRequest<{
 					data: {
-						id: string;
-						userId: string;
-						title: string;
-						createdAt: string;
-						updatedAt: string;
 						messages: Array<{
 							id: string;
 							chatId: string;
@@ -58,15 +67,15 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 							totalTokens: number;
 							createdAt: string;
 						}>;
-						documents: Array<{
-							id: string;
-							fileName: string;
-							fileType: string;
-						}>;
+						title: string;
+						hasMore?: boolean;
+						nextPage?: number;
 					};
-				}>(`chats/${chatId}/messages`);
-				console.log('Fetch chat response:', data);
-				setChatTitle(data.data.title);
+				}>(`chats/${chatId}/messages?page=1&limit=50`);
+				
+				setChatTitle(data.data.title || 'Chat');
+				setHasMore(data.data.hasMore || false);
+				setCurrentPage(1);
 
 				// Convert messages from turn format to DisplayMessage format
 				const convertedMessages: DisplayMessage[] =
@@ -103,7 +112,6 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 				// For new chats, it's normal to not find messages yet
 				const err = error as { response?: { status?: number } };
 				if (err?.response?.status === 404) {
-					console.log('New chat - no messages yet');
 					setChatTitle('Chat');
 				} else {
 					console.error('Error fetching chat:', error);
@@ -115,6 +123,74 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 
 		fetchChatMessages();
 	}, [chatId, chatCreated]);
+
+	// Load more messages when user scrolls to top (infinite scroll)
+	const loadMoreMessages = useCallback(async () => {
+		if (!hasMore || isLoadingMore || chatId === 'new') return;
+
+		try {
+			setIsLoadingMore(true);
+			const nextPage = currentPage + 1;
+
+			const data = await apiRequest<{
+				data: {
+					messages: Array<{
+						id: string;
+						chatId: string;
+						turn: {
+							user: string;
+							assistant: string;
+						};
+						helpful: boolean | null;
+						totalTokens: number;
+						createdAt: string;
+					}>;
+					hasMore?: boolean;
+				};
+			}>(`chats/${chatId}/messages?page=${nextPage}&limit=50`);
+
+			setHasMore(data.data.hasMore || false);
+			setCurrentPage(nextPage);
+
+			// Convert new messages
+			const convertedMessages: DisplayMessage[] =
+				data.data.messages.flatMap((msg) => [
+					{
+						id: msg.id + '-user',
+						originalId: msg.id,
+						content: msg.turn.user,
+						role: 'user' as const,
+						tokens: 0,
+						createdAt: msg.createdAt,
+					},
+					{
+						id: msg.id + '-assistant',
+						originalId: msg.id,
+						content: msg.turn.assistant,
+						role: 'assistant' as const,
+						tokens: msg.totalTokens,
+						createdAt: msg.createdAt,
+					},
+				]);
+
+			// Prepend older messages to the beginning of the array
+			setMessages((prev) => [...convertedMessages, ...prev]);
+
+			// Update feedback state for new messages
+			data.data.messages.forEach((msg) => {
+				if (msg.helpful !== null) {
+					setMessageFeedback((prev) => ({
+						...prev,
+						[msg.id]: msg.helpful,
+					}));
+				}
+			});
+		} catch (error) {
+			console.error('Error loading more messages:', error);
+		} finally {
+			setIsLoadingMore(false);
+		}
+	}, [chatId, hasMore, isLoadingMore, currentPage]);
 
 	const handleHelpfulClick = async (messageId: string) => {
 		try {
@@ -147,6 +223,9 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 		setMessages,
 		chatTitle,
 		isLoading,
+		isLoadingMore,
+		hasMore,
+		loadMoreMessages,
 		messageFeedback,
 		handleHelpfulClick,
 		handleNotHelpfulClick,

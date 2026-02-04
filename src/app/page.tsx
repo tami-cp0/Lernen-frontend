@@ -17,3 +17,7 @@ export default function Home() {
     </div>
   );
 }
+
+// check if pdf is correct first
+// check for corrupted pdfs
+// add height to pdf viewer intersection observer api

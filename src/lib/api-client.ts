@@ -11,6 +11,10 @@ import { clientEnv } from '../../env.client';
 
 const API_BASE_URL = clientEnv.apiUrl;
 
+// Token cache to reduce redundant cookie reads
+let tokenCache: { accessToken: string | null; timestamp: number } | null = null;
+const TOKEN_CACHE_TTL = 5000; // 5 seconds cache
+
 /**
  * Set authentication tokens in HTTP-only cookies
  */
@@ -30,6 +34,8 @@ export async function setAuthTokens(
  */
 export async function clearAuthTokens(): Promise<void> {
 	await fetch('/api/auth/clear-tokens', { method: 'POST' });
+	// Clear token cache
+	tokenCache = null;
 }
 
 /**
@@ -57,6 +63,8 @@ async function refreshToken(provider: string = 'email'): Promise<boolean> {
 
 		const data = await response.json();
 		await setAuthTokens(data.data.accessToken, data.data.refreshToken);
+		// Update token cache with new token
+		tokenCache = { accessToken: data.data.accessToken, timestamp: Date.now() };
 		return true;
 	} catch {
 		return false;
@@ -99,11 +107,20 @@ export async function apiRequest<T = unknown>(
 		});
 	};
 
-	// Get current access token
-	const tokensRes = await fetch('/api/auth/get-tokens');
-	const { accessToken } = await tokensRes.json();
-
-	console.log(accessToken);
+	// Get current access token (with caching to reduce redundant calls)
+	let accessToken: string | undefined;
+	
+	// Check cache first
+	if (tokenCache && Date.now() - tokenCache.timestamp < TOKEN_CACHE_TTL) {
+		accessToken = tokenCache.accessToken || undefined;
+	} else {
+		// Cache miss or expired, fetch fresh token
+		const tokensRes = await fetch('/api/auth/get-tokens');
+		const tokenData = await tokensRes.json();
+		accessToken = tokenData.accessToken || undefined;
+		// Update cache
+		tokenCache = { accessToken: tokenData.accessToken, timestamp: Date.now() };
+	}
 
 	let response = await makeRequest(accessToken);
 
@@ -124,6 +141,8 @@ export async function apiRequest<T = unknown>(
 		// Retry with new token
 		const newTokensRes = await fetch('/api/auth/get-tokens');
 		const { accessToken: newAccessToken } = await newTokensRes.json();
+		// Update cache with fresh token
+		tokenCache = { accessToken: newAccessToken, timestamp: Date.now() };
 		response = await makeRequest(newAccessToken);
 	}
 

@@ -22,18 +22,21 @@ import type { DisplayMessage, Message } from '../components/ChatMessage';
  * - Document selection for context-aware responses
  * - Error handling with retry capability
  * - Automatic message cleanup on completion
+ * - Lazy chat creation on first message for 'new' chats
  *
  * @param props - Configuration including chatId, selected documents, PDF state, and message setter
  * @returns Object with sendMessage function and loading state
  */
 
 type UseStreamingMessageProps = {
-	chatId: string; // UUID of the current chat
+	chatId: string; // UUID of the current chat (or 'new' for new chats)
 	selectedDocs: string[]; // IDs of documents to use for context
 	selectedFile: { fileId: string; fileName: string; chatId: string } | null; // Currently viewed file (if any)
 	pdfDocument: PDFDocumentProxy | null; // PDF.js document instance
 	currentPage: number; // Current page number being viewed
 	setMessages: Dispatch<SetStateAction<DisplayMessage[]>>; // State setter for messages
+	isNewChat?: boolean; // Whether this is a new chat that needs to be created
+	createChat?: () => Promise<string | null>; // Function to create the chat and return the new chatId
 };
 
 export const useStreamingMessage = ({
@@ -43,6 +46,8 @@ export const useStreamingMessage = ({
 	pdfDocument,
 	currentPage,
 	setMessages,
+	isNewChat = false,
+	createChat,
 }: UseStreamingMessageProps) => {
 	// Track whether a message is currently being sent/streamed
 	const [isSendingMessage, setIsSendingMessage] = useState(false);
@@ -51,12 +56,13 @@ export const useStreamingMessage = ({
 	 * Send a message and stream the AI response
 	 *
 	 * Flow:
-	 * 1. Build request body with message and context (selected docs, current page)
-	 * 2. Create stream session on backend (Step 1)
-	 * 3. Add temporary messages to UI for optimistic rendering
-	 * 4. Connect to SSE stream (Step 2)
-	 * 5. Update temp message as chunks arrive
-	 * 6. Replace temp messages with final messages on completion
+	 * 1. If new chat, create the chat first and get the new chatId
+	 * 2. Build request body with message and context (selected docs, current page)
+	 * 3. Create stream session on backend (Step 1)
+	 * 4. Add temporary messages to UI for optimistic rendering
+	 * 5. Connect to SSE stream (Step 2)
+	 * 6. Update temp message as chunks arrive
+	 * 7. Replace temp messages with final messages on completion
 	 *
 	 * @param text - The message text to send
 	 * @param messagesToRemove - Optional array of message IDs to remove (used for retry to clear failed turn)
@@ -88,7 +94,19 @@ export const useStreamingMessage = ({
 		// Will hold the EventSource connection for SSE streaming
 		let eventSource: EventSource | null = null;
 
+		// Determine the actual chatId to use (may need to create chat first)
+		let actualChatId = chatId;
+
 		try {
+			// If this is a new chat, create it first
+			if (isNewChat && createChat) {
+				const newChatId = await createChat();
+				if (!newChatId) {
+					throw new Error('Failed to create chat');
+				}
+				actualChatId = newChatId;
+			}
+
 			// Build the request body with message and optional context
 			const requestBody: {
 				message: string;
@@ -131,13 +149,13 @@ export const useStreamingMessage = ({
 				}
 			}
 
-			// Get authentication token from HTTP-only cookie
+			// Get authentication token from HTTP-only cookie (reuses cache from api-client)
 			const tokensRes = await fetch('/api/auth/get-tokens');
 			const { accessToken } = await tokensRes.json();
 
 			// STEP 1: Create stream session with authentication
 			const sessionResponse = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/${chatId}/sse/create-stream-session`,
+				`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/${actualChatId}/sse/create-stream-session`,
 				{
 					method: 'POST',
 					headers: {
@@ -157,7 +175,7 @@ export const useStreamingMessage = ({
 			// Session created successfully! Now connect to SSE stream
 			// STEP 2: Connect to SSE stream (no auth needed, uses session from Step 1)
 			eventSource = new EventSource(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/${chatId}/sse/stream-message`
+				`${process.env.NEXT_PUBLIC_API_URL}/api/v1/chats/${actualChatId}/sse/stream-message`
 			);
 
 			// Accumulate the full response as chunks arrive

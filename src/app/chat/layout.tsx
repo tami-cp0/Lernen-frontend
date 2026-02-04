@@ -6,6 +6,7 @@ import { FileViewProvider, useFileView } from './context/FileViewContext';
 import { SelectedDocsProvider } from './context/SelectedDocsContext';
 import { UserProvider } from './context/UserContext';
 import { SidebarProvider, useSidebar } from './context/SidebarContext';
+import { ChatProvider } from './context/ChatContext';
 import MobileHeader from './components/Header';
 
 // Dynamically import FileView to prevent SSR issues with PDF.js
@@ -55,11 +56,13 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
 	return (
 		<UserProvider>
 			<SidebarProvider>
-				<FileViewProvider>
-					<SelectedDocsProvider>
-						<ChatLayoutContent>{children}</ChatLayoutContent>
-					</SelectedDocsProvider>
-				</FileViewProvider>
+				<ChatProvider>
+					<FileViewProvider>
+						<SelectedDocsProvider>
+							<ChatLayoutContent>{children}</ChatLayoutContent>
+						</SelectedDocsProvider>
+					</FileViewProvider>
+				</ChatProvider>
 			</SidebarProvider>
 		</UserProvider>
 	);

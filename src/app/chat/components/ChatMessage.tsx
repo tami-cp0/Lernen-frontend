@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { ThumbsUp, Copy, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import { memo } from 'react';
 
 /**
  * ChatMessage Component
@@ -156,3 +157,6 @@ export const ChatMessage = ({
 		</div>
 	);
 };
+
+// Memoize component to prevent unnecessary re-renders
+export default memo(ChatMessage);
