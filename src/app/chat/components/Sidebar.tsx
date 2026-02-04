@@ -380,7 +380,7 @@ export default function Sidebar() {
 			>
 				<div className="w-full">
 					{isSidebarExpanded ? (
-						<div className="flex flex-row items-center justify-between py-3 mb-6 w-full border-2">
+						<div className="flex flex-row items-center justify-between py-3 mb-6 w-full">
 							<Image
 								src="/lernen-logo.svg"
 								alt="Lernen logo"

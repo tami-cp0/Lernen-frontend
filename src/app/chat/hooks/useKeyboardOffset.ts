@@ -1,10 +1,32 @@
 'use client';
+import { useEffect, useState } from 'react';
 
 /**
- * Hook that previously calculated keyboard offset.
- * Now returns 0 to prevent layout shifts when keyboard appears.
- * The MessageComposer stays fixed at the bottom regardless of keyboard state.
+ * Hook that calculates keyboard offset on mobile devices.
+ * Adjusts the MessageComposer position when keyboard appears.
  */
 export function useKeyboardOffset() {
-	return 0;
+	const [offset, setOffset] = useState(0);
+
+	useEffect(() => {
+		const vv = window.visualViewport;
+		if (!vv) return;
+
+		const update = () => {
+			const keyboardHeight =
+				window.innerHeight - vv.height - vv.offsetTop;
+			setOffset(Math.max(keyboardHeight, 0));
+		};
+
+		update();
+		vv.addEventListener('resize', update);
+		vv.addEventListener('scroll', update);
+
+		return () => {
+			vv.removeEventListener('resize', update);
+			vv.removeEventListener('scroll', update);
+		};
+	}, []);
+
+	return offset;
 }

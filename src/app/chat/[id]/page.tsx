@@ -9,7 +9,6 @@ import { MessageList } from '../components/MessageList';
 import { LoadingIndicator } from '../components/LoadingIndicator';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useStreamingMessage } from '../hooks/useStreamingMessage';
-import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { useChatContext } from '../context/ChatContext';
 
 const ExistingChatPage = () => {
@@ -17,10 +16,14 @@ const ExistingChatPage = () => {
 	const paramId = params.id as string;
 	const isNewChat = paramId === 'new';
 
-	// Use the chat context for chat creation and state
+	// Use the chat context for chat creation only
 	const { actualChatId, chatCreated, createChatIfNeeded } = useChatContext();
-	// Use paramId for rendering/fetching to ensure immediate response to navigation
-	const chatId = isNewChat ? 'new' : actualChatId || paramId;
+	
+	// For existing chats, ALWAYS use paramId directly (it changes immediately on navigation)
+	// Only use actualChatId for new chats that have been created
+	const chatId = isNewChat 
+		? (actualChatId || 'new')  // For new chat: use created ID if available, otherwise 'new'
+		: paramId;  // For existing chats: always use URL param directly
 
 	const { selectedDocs, setSelectedDocs } = useSelectedDocs();
 	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
@@ -30,10 +33,11 @@ const ExistingChatPage = () => {
 	const loadingRef = useRef<HTMLDivElement>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const [composerText, setComposerText] = useState('');
-	const keyboardOffset = useKeyboardOffset();
-	const [isFirstVisit, setIsFirstVisit] = useState(false);
+	const [showMessages, setShowMessages] = useState(false);
+	const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
 
 	// Custom hooks for state and logic
+	// Pass paramId as key to force hook reset on navigation
 	const {
 		messages,
 		setMessages,
@@ -45,7 +49,13 @@ const ExistingChatPage = () => {
 		messageFeedback,
 		handleHelpfulClick,
 		handleNotHelpfulClick,
-	} = useChatMessages(chatId, chatCreated);
+	} = useChatMessages(chatId, isNewChat ? chatCreated : true);
+
+	// Reset visual state when navigating to a different chat
+	useEffect(() => {
+		setShowMessages(false);
+		setHasScrolledToBottom(false);
+	}, [paramId]);
 
 	const { sendMessage, isSendingMessage } = useStreamingMessage({
 		chatId,
@@ -58,17 +68,6 @@ const ExistingChatPage = () => {
 		createChat: createChatIfNeeded,
 	});
 
-	// Check if first visit on client side only
-	useEffect(() => {
-		if (typeof window !== 'undefined') {
-			const visited = localStorage.getItem('visited');
-			if (!visited) {
-				setIsFirstVisit(true);
-				localStorage.setItem('visited', 'true');
-			}
-		}
-	}, []);
-
 	// Close file viewer and clear selected docs when navigating to a new chat
 	useEffect(() => {
 		setSelectedFile(null);
@@ -80,11 +79,20 @@ const ExistingChatPage = () => {
 		if (isSendingMessage) {
 			// Scroll to loading indicator when sending
 			loadingRef.current?.scrollIntoView({ behavior: 'smooth' });
-		} else {
-			// Scroll to bottom when messages update
+		} else if (messages.length > 0 && !isLoading && !hasScrolledToBottom) {
+			// First time messages load - scroll instantly to bottom without showing them
+			messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+			setHasScrolledToBottom(true);
+			// Reveal messages after a brief delay
+			setTimeout(() => {
+				setShowMessages(true);
+			}, 50);
+		} else if (messages.length > 0 && hasScrolledToBottom) {
+			// Subsequent updates - smooth scroll and messages already visible
+			setShowMessages(true);
 			messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 		}
-	}, [messages, isSendingMessage]);
+	}, [messages, isSendingMessage, isLoading, hasScrolledToBottom]);
 
 	// Infinite scroll: load more messages when scrolling near the top
 	useEffect(() => {
@@ -126,7 +134,7 @@ const ExistingChatPage = () => {
 	return (
 		<main className="relative flex-1 h-full flex flex-col justify-center items-center">
 			<section className="hidden md:flex font-mono text-md w-full rounded-t-xl h-15  p-4 items-center z-11 absolute top-0 bg-background/85 backdrop-blur-sm">
-				{chatTitle || 'New Chat'}
+				{`${chatTitle && !isNewChat ? chatTitle : ''}`}
 			</section>
 			{/* Scrollable content area */}
 			<section
@@ -146,11 +154,7 @@ const ExistingChatPage = () => {
 					{isNewChat && (
 						<WelcomeScreen onHintClick={setComposerText} />
 					)}
-					{isLoading ? (
-						<div className="flex-1 flex items-center justify-center text-secondary-lighter">
-							{/* Loading messages... */}
-						</div>
-					) : (
+					{!isNewChat && showMessages && (
 						<MessageList
 							messages={messages}
 							messageFeedback={messageFeedback}
@@ -175,8 +179,6 @@ const ExistingChatPage = () => {
 				text={composerText}
 				setText={setComposerText}
 				isSending={isSendingMessage}
-				isFirstVisit={isFirstVisit}
-				keyboardOffset={keyboardOffset}
 			/>
 		</main>
 	);
