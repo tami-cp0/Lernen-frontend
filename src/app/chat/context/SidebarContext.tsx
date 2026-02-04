@@ -11,12 +11,13 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
 	// Determine initial sidebar state based on screen size
-	const isBelowLg =
+	// Sidebar is open by default on md screens and above (768px+)
+	const isBelowMd =
 		typeof window !== 'undefined' &&
-		!window.matchMedia('(min-width: 1024px)').matches;
+		!window.matchMedia('(min-width: 768px)').matches;
 
-	// Sidebar is collapsed by default on small screens
-	const [isSidebarExpanded, setIsSidebarExpanded] = useState(!isBelowLg);
+	// Sidebar is collapsed by default only on small screens (below md)
+	const [isSidebarExpanded, setIsSidebarExpanded] = useState(!isBelowMd);
 
 	const toggleSidebar = () => {
 		setIsSidebarExpanded((prev) => !prev);

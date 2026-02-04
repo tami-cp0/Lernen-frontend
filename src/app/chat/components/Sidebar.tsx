@@ -413,7 +413,7 @@ export default function Sidebar() {
 										}
 										className="hover:bg-[#252525] cursor-e-resize"
 									>
-										<PanelsTopLeft className="text-[#777777] size-5" />
+										<PanelsTopLeft className="text-[#777777] size-4" />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent
@@ -455,7 +455,7 @@ export default function Sidebar() {
 										}
 										className="hover:bg-[#252525] w-8 h-8 cursor-e-resize"
 									>
-										<PanelsTopLeft className="text-[#777777] size-5" />
+										<PanelsTopLeft className="text-[#777777] size-4" />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent
