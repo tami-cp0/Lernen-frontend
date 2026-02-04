@@ -6,6 +6,7 @@ import {
 	useCallback,
 	ReactNode,
 	useRef,
+	useEffect,
 } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
@@ -33,6 +34,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 	);
 	const [chatCreated, setChatCreated] = useState(!isNewChat);
 	const isCreatingRef = useRef(false);
+
+	// Reset state when pathname changes
+	useEffect(() => {
+		const newPathnameId = pathname?.match(/\/chat\/([^\/]+)/)?.[1] || null;
+		const isNew = newPathnameId === 'new';
+
+		// Reset state when navigating to a different chat or to 'new'
+		if (isNew) {
+			setActualChatId(null);
+			setChatCreated(false);
+			isCreatingRef.current = false;
+		} else if (newPathnameId && newPathnameId !== actualChatId) {
+			setActualChatId(newPathnameId);
+			setChatCreated(true);
+			isCreatingRef.current = false;
+		}
+	}, [pathname, actualChatId]);
 
 	const createChatIfNeeded = useCallback(async (): Promise<string | null> => {
 		// If already have a valid chatId, return it

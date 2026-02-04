@@ -2,13 +2,14 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { memo } from 'react';
 
 interface MarkdownRendererProps {
 	content: string;
 	className?: string;
 }
 
-export default function MarkdownRenderer({
+const MarkdownRenderer = memo(function MarkdownRenderer({
 	content,
 	className = '',
 }: MarkdownRendererProps) {
@@ -122,4 +123,6 @@ export default function MarkdownRenderer({
 			</ReactMarkdown>
 		</div>
 	);
-}
+});
+
+export default MarkdownRenderer;

@@ -64,7 +64,10 @@ async function refreshToken(provider: string = 'email'): Promise<boolean> {
 		const data = await response.json();
 		await setAuthTokens(data.data.accessToken, data.data.refreshToken);
 		// Update token cache with new token
-		tokenCache = { accessToken: data.data.accessToken, timestamp: Date.now() };
+		tokenCache = {
+			accessToken: data.data.accessToken,
+			timestamp: Date.now(),
+		};
 		return true;
 	} catch {
 		return false;
@@ -109,7 +112,7 @@ export async function apiRequest<T = unknown>(
 
 	// Get current access token (with caching to reduce redundant calls)
 	let accessToken: string | undefined;
-	
+
 	// Check cache first
 	if (tokenCache && Date.now() - tokenCache.timestamp < TOKEN_CACHE_TTL) {
 		accessToken = tokenCache.accessToken || undefined;
@@ -119,7 +122,10 @@ export async function apiRequest<T = unknown>(
 		const tokenData = await tokensRes.json();
 		accessToken = tokenData.accessToken || undefined;
 		// Update cache
-		tokenCache = { accessToken: tokenData.accessToken, timestamp: Date.now() };
+		tokenCache = {
+			accessToken: tokenData.accessToken,
+			timestamp: Date.now(),
+		};
 	}
 
 	let response = await makeRequest(accessToken);

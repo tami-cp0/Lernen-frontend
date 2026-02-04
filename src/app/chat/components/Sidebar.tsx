@@ -87,9 +87,7 @@ export default function Sidebar() {
 				{ data: { chats: Chat[] } } | { chats: Chat[] }
 			>('chats');
 			const chatsArray =
-				'data' in chatsData
-					? chatsData.data.chats
-					: chatsData.chats;
+				'data' in chatsData ? chatsData.data.chats : chatsData.chats;
 			setChats(chatsArray || []);
 		} catch (error) {
 			console.error('Error fetching sidebar chats:', error);
@@ -415,9 +413,7 @@ export default function Sidebar() {
 										}
 										className="hover:bg-[#252525] cursor-e-resize"
 									>
-										<PanelsTopLeft
-											className="text-[#777777] size-5"
-										/>
+										<PanelsTopLeft className="text-[#777777] size-5" />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent
@@ -459,9 +455,7 @@ export default function Sidebar() {
 										}
 										className="hover:bg-[#252525] w-8 h-8 cursor-e-resize"
 									>
-										<PanelsTopLeft
-											className="text-[#777777] size-5"
-										/>
+										<PanelsTopLeft className="text-[#777777] size-5" />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent
@@ -586,15 +580,15 @@ export default function Sidebar() {
 													)
 												);
 
-											// Refresh documents list using documents-only endpoint
-											const data = await apiRequest<{
-												data: {
-													documents: Document[];
-												};
-											}>(`chats/${chatId}/documents`);
-											setDocuments(
-												data.data.documents || []
-											);												// Also remove from selected docs if it was selected
+												// Refresh documents list using documents-only endpoint
+												const data = await apiRequest<{
+													data: {
+														documents: Document[];
+													};
+												}>(`chats/${chatId}/documents`);
+												setDocuments(
+													data.data.documents || []
+												); // Also remove from selected docs if it was selected
 												if (
 													selectedDocs.includes(
 														fileInfo.documentId
@@ -712,12 +706,22 @@ export default function Sidebar() {
 									<Link
 										key={chat.id}
 										href={`/chat/${chat.id}`}
-										onClick={() => setCurrentChat(chat.id)}
+										onClick={() => {
+											setCurrentChat(chat.id);
+											// Close sidebar only on mobile devices (below md breakpoint)
+											const isBelowMd =
+												window.matchMedia(
+													'(max-width: 767px)'
+												).matches;
+											if (isBelowMd) {
+												setIsSidebarExpanded(false);
+											}
+										}}
 										className={`
-										text-foreground font-sans text-md whitespace-nowrap overflow-hidden text-ellipsis
-										cursor-pointer mt-1 rounded-md px-3 py-1.5 w-[95%] block
-										${currentChat === chat.id ? 'bg-[#2e2e2e]' : 'hover:bg-[#252525]'}
-									`}
+									text-foreground font-sans text-md whitespace-nowrap overflow-hidden text-ellipsis
+									cursor-pointer mt-1 rounded-md px-3 py-1.5 w-[95%] block
+									${currentChat === chat.id ? 'bg-[#2e2e2e]' : 'hover:bg-[#252525]'}
+								`}
 									>
 										{chat.title}
 									</Link>

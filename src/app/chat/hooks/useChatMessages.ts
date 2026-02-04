@@ -40,6 +40,16 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 		Record<string, boolean | null>
 	>({});
 
+	// Clear messages immediately when chatId changes to prevent messages from previous chat showing
+	useEffect(() => {
+		setMessages([]);
+		setChatTitle('');
+		setMessageFeedback({});
+		setHasMore(false);
+		setCurrentPage(1);
+		setIsLoading(chatId !== 'new');
+	}, [chatId]);
+
 	// Fetch chat messages when chat is created
 	useEffect(() => {
 		// Skip fetching for 'new' chats - they have no messages yet
@@ -51,7 +61,7 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 		const fetchChatMessages = async () => {
 			try {
 				setIsLoading(true);
-				
+
 				// Fetch messages with pagination - only get messages, not full chat data
 				// This is much more efficient than fetching entire chat with documents
 				const data = await apiRequest<{
@@ -72,7 +82,7 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 						nextPage?: number;
 					};
 				}>(`chats/${chatId}/messages?page=1&limit=50`);
-				
+
 				setChatTitle(data.data.title || 'Chat');
 				setHasMore(data.data.hasMore || false);
 				setCurrentPage(1);

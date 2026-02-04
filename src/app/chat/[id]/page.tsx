@@ -10,7 +10,6 @@ import { LoadingIndicator } from '../components/LoadingIndicator';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useStreamingMessage } from '../hooks/useStreamingMessage';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
-import { useSidebar } from '../context/SidebarContext';
 import { useChatContext } from '../context/ChatContext';
 
 const ExistingChatPage = () => {
@@ -20,7 +19,8 @@ const ExistingChatPage = () => {
 
 	// Use the chat context for chat creation and state
 	const { actualChatId, chatCreated, createChatIfNeeded } = useChatContext();
-	const chatId = actualChatId || paramId;
+	// Use paramId for rendering/fetching to ensure immediate response to navigation
+	const chatId = isNewChat ? 'new' : actualChatId || paramId;
 
 	const { selectedDocs, setSelectedDocs } = useSelectedDocs();
 	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
@@ -31,7 +31,7 @@ const ExistingChatPage = () => {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const [composerText, setComposerText] = useState('');
 	const keyboardOffset = useKeyboardOffset();
-	const { setIsSidebarExpanded } = useSidebar();
+	const [isFirstVisit, setIsFirstVisit] = useState(false);
 
 	// Custom hooks for state and logic
 	const {
@@ -58,12 +58,14 @@ const ExistingChatPage = () => {
 		createChat: createChatIfNeeded,
 	});
 
-	// show hint for message composer if the user hasnt seen it before
+	// Check if first visit on client side only
 	useEffect(() => {
-		const isFirstVisit = !localStorage.getItem('visited');
-
-		if (isFirstVisit) {
-			localStorage.setItem('visited', 'true');
+		if (typeof window !== 'undefined') {
+			const visited = localStorage.getItem('visited');
+			if (!visited) {
+				setIsFirstVisit(true);
+				localStorage.setItem('visited', 'true');
+			}
 		}
 	}, []);
 
@@ -71,13 +73,7 @@ const ExistingChatPage = () => {
 	useEffect(() => {
 		setSelectedFile(null);
 		setSelectedDocs([]);
-
-		// Close sidebar on mobile/tablet when chat loads
-		const isBelowLg = window.matchMedia('(max-width: 1023px)').matches;
-		if (isBelowLg) {
-			setIsSidebarExpanded(false);
-		}
-	}, [chatId, setSelectedFile, setSelectedDocs, setIsSidebarExpanded]);
+	}, [chatId, setSelectedFile, setSelectedDocs]);
 
 	// Auto-scroll to bottom when messages change or when sending starts
 	useEffect(() => {
@@ -100,29 +96,32 @@ const ExistingChatPage = () => {
 			if (scrollContainer.scrollTop < 200 && hasMore && !isLoadingMore) {
 				// Store current scroll height before loading more
 				const previousScrollHeight = scrollContainer.scrollHeight;
-				
+
 				loadMoreMessages().then(() => {
 					// After loading, maintain scroll position
 					// (prevent jumping to top when new messages are prepended)
 					requestAnimationFrame(() => {
 						const newScrollHeight = scrollContainer.scrollHeight;
-						const scrollDiff = newScrollHeight - previousScrollHeight;
-						scrollContainer.scrollTop = scrollContainer.scrollTop + scrollDiff;
+						const scrollDiff =
+							newScrollHeight - previousScrollHeight;
+						scrollContainer.scrollTop =
+							scrollContainer.scrollTop + scrollDiff;
 					});
 				});
 			}
 		};
 
 		scrollContainer.addEventListener('scroll', handleScroll);
-		return () => scrollContainer.removeEventListener('scroll', handleScroll);
+		return () =>
+			scrollContainer.removeEventListener('scroll', handleScroll);
 	}, [hasMore, isLoadingMore, loadMoreMessages]);
 
-	const handleRetry = useCallback((
-		originalMessage: string,
-		messagesToRemove: string[]
-	) => {
-		sendMessage(originalMessage, messagesToRemove);
-	}, [sendMessage]);
+	const handleRetry = useCallback(
+		(originalMessage: string, messagesToRemove: string[]) => {
+			sendMessage(originalMessage, messagesToRemove);
+		},
+		[sendMessage]
+	);
 
 	return (
 		<main className="relative flex-1 h-full flex flex-col justify-center items-center">
@@ -130,20 +129,20 @@ const ExistingChatPage = () => {
 				{chatTitle || 'New Chat'}
 			</section>
 			{/* Scrollable content area */}
-			<section 
+			<section
 				ref={scrollContainerRef}
 				className="overflow-y-auto flex-1 w-full flex justify-center hidden-scrollbar md:custom-scrollbar"
 			>
 				<div className="w-[90%] md:w-[78%] max-w-[1000px] flex flex-col gap-3">
 					<div className="h-12 shrink-0"></div>
-					
 					{/* Loading indicator for older messages at top */}
 					{isLoadingMore && (
 						<div className="flex justify-center py-4">
-							<div className="text-sm text-muted-foreground">Loading older messages...</div>
+							<div className="text-sm text-muted-foreground">
+								Loading older messages...
+							</div>
 						</div>
 					)}
-					
 					{isNewChat && (
 						<WelcomeScreen onHintClick={setComposerText} />
 					)}
@@ -176,7 +175,7 @@ const ExistingChatPage = () => {
 				text={composerText}
 				setText={setComposerText}
 				isSending={isSendingMessage}
-				isFirstVisit={typeof window !== 'undefined' && !localStorage.getItem('visited')}
+				isFirstVisit={isFirstVisit}
 				keyboardOffset={keyboardOffset}
 			/>
 		</main>
