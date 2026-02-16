@@ -179,7 +179,7 @@ const OnboardingPage = () => {
 					Lernen (ler‧nen) The Intelligent Learning Tech
 				</p>
 			</section>
-			<section className="z-1 relative bg-secondary w-full h-full pb-10 [@media(min-height:768px)]:p-0 md:w-[45%] flex flex-col items-center gap-10">
+			<section className="z-1 relative bg-secondary w-full h-screen pb-10 [@media(min-height:768px)]:p-0 md:w-[45%] flex flex-col items-center gap-10">
 				<div className="absolute top-5 right-5  md:top-10 md:right-20 flex flex-row gap-4">
 					<a href="https://github.com/tami-cp0">
 						<Image
