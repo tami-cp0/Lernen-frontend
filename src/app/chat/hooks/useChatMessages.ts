@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiRequest } from '@/lib/api-client';
 import type { DisplayMessage } from '../components/ChatMessage';
 
@@ -39,19 +39,42 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 	const [messageFeedback, setMessageFeedback] = useState<
 		Record<string, boolean | null>
 	>({});
+	// Track the previous chatId to detect transitions from 'new' to UUID
+	const prevChatIdRef = useRef<string>(chatId);
 
 	// Fetch chat messages when chat is created
 	useEffect(() => {
 		// Skip fetching for 'new' chats - they have no messages yet
 		if (!chatCreated || chatId === 'new') {
-			setMessages([]);
-			setChatTitle('');
-			setMessageFeedback({});
-			setHasMore(false);
-			setCurrentPage(1);
+			// NEVER clear messages here - they might have been optimistically added
+			// Only reset if we're truly navigating to a new empty chat
+			if (prevChatIdRef.current !== chatId) {
+				setMessages([]);
+				setChatTitle('');
+				setMessageFeedback({});
+				setHasMore(false);
+				setCurrentPage(1);
+			}
+			setIsLoading(false);
+			prevChatIdRef.current = chatId;
+			return;
+		}
+
+		// If we're transitioning from 'new' to a UUID (chat just created),
+		// skip the fetch because messages were already optimistically added
+		if (prevChatIdRef.current === 'new' && chatId !== 'new') {
+			prevChatIdRef.current = chatId;
 			setIsLoading(false);
 			return;
 		}
+
+		// If chatId hasn't changed, don't refetch
+		if (prevChatIdRef.current === chatId) {
+			return;
+		}
+
+		// Update previous chatId tracker
+		prevChatIdRef.current = chatId;
 
 		const fetchChatMessages = async () => {
 			try {

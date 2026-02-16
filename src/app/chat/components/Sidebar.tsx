@@ -75,8 +75,13 @@ export default function Sidebar() {
 	const { user } = useUser();
 	const [documents, setDocuments] = useState<Document[]>([]);
 	const [uploadingFiles, setUploadingFiles] = useState<
-		{ fileName: string; documentId?: string }[]
+		{
+			fileName: string;
+			documentId?: string;
+			status?: 'requesting' | 'uploading' | 'processing';
+		}[]
 	>([]);
+	const [removingFiles, setRemovingFiles] = useState<string[]>([]);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [isDocDialogOpen, setIsDocDialogOpen] = useState<boolean>(false);
 
@@ -100,8 +105,27 @@ export default function Sidebar() {
 		fetchChats();
 
 		// Listen for chat-created events to refetch chats list
-		const handleChatCreated = () => {
-			fetchChats();
+		const handleChatCreated = (event: Event) => {
+			const customEvent = event as CustomEvent<{ chatId: string }>;
+			const newChatId = customEvent.detail?.chatId;
+
+			// Optimistically add the new chat to the list immediately
+			if (newChatId) {
+				setChats((prev) => [
+					{
+						id: newChatId,
+						title: 'Chat',
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					},
+					...prev,
+				]);
+			}
+
+			// Refetch after a delay to ensure backend has processed the creation
+			setTimeout(() => {
+				fetchChats();
+			}, 300);
 		};
 		window.addEventListener('chat-created', handleChatCreated);
 
@@ -164,6 +188,9 @@ export default function Sidebar() {
 		const chatId = pathname?.match(/\/chat\/([^\/]+)/)?.[1];
 		if (!chatId) return;
 
+		// Add to removing state
+		setRemovingFiles((prev) => [...prev, fileId]);
+
 		try {
 			// Call API first
 			await apiRequest(`chats/${chatId}/remove-document`, 'DELETE', {
@@ -182,6 +209,9 @@ export default function Sidebar() {
 		} catch (error) {
 			console.error('Error removing file:', error);
 			toast.error('Failed to remove file');
+		} finally {
+			// Remove from removing state
+			setRemovingFiles((prev) => prev.filter((id) => id !== fileId));
 		}
 	}
 
@@ -234,7 +264,7 @@ export default function Sidebar() {
 			return;
 		}
 
-		// Upload each file separately
+		// Upload each file using S3 pre-signed URL flow
 		for (const file of fileArray) {
 			// Check if limit reached
 			if (currentDocCount >= 5) {
@@ -257,46 +287,82 @@ export default function Sidebar() {
 				continue;
 			}
 
-			// Add to uploading state
-			setUploadingFiles((prev) => [...prev, { fileName: file.name }]);
+			// Add to uploading state with 'requesting' status
+			setUploadingFiles((prev) => [
+				...prev,
+				{ fileName: file.name, status: 'requesting' },
+			]);
+
+			let documentId: string | null = null;
 
 			try {
-				const formData = new FormData();
-				formData.append('files', file);
-
-				const response = await apiRequest<{
+				// Step 1: Request pre-signed upload URL from backend
+				const urlResponse = await apiRequest<{
 					message: string;
-					remainingSlots: number;
-					chatId: string;
-					successfulUploads: Array<{
-						id: string;
-						name: string;
-					}>;
-					failedUploads: Array<{
-						name: string;
-						reason?: string;
-					}>;
-				}>(`chats/${chatId}/upload-document`, 'POST', formData);
+					data: {
+						uploadUrl: string;
+						documentId: string;
+						s3Key: string;
+						expiresIn: number;
+					};
+				}>(`chats/${chatId}/request-upload-url`, 'POST', {
+					fileName: file.name,
+					fileType: file.type,
+					fileSize: file.size,
+				});
+
+				const { uploadUrl, documentId: docId } = urlResponse.data;
+				documentId = docId;
+
+				// Update state with documentId and 'uploading' status
+				setUploadingFiles((prev) =>
+					prev.map((f) =>
+						f.fileName === file.name
+							? { ...f, documentId: docId, status: 'uploading' }
+							: f
+					)
+				);
+
+				// Step 2: Upload file directly to S3
+				const s3Response = await fetch(uploadUrl, {
+					method: 'PUT',
+					headers: {
+						'Content-Type': file.type,
+					},
+					body: file,
+				});
+
+				if (!s3Response.ok) {
+					throw new Error('Failed to upload to S3');
+				}
+
+				// Update state to 'processing' status
+				setUploadingFiles((prev) =>
+					prev.map((f) =>
+						f.fileName === file.name
+							? { ...f, status: 'processing' }
+							: f
+					)
+				);
+
+				// Step 3: Notify backend to process the uploaded document
+				const processResponse = await apiRequest<{
+					message: string;
+					data: {
+						document: {
+							id: string;
+							fileName: string;
+							fileType: string;
+							fileSize: number;
+						};
+					};
+				}>(`chats/${chatId}/process-uploaded-document`, 'POST', {
+					documentId: docId,
+				});
 
 				// Handle successful upload
-				if (
-					response.successfulUploads &&
-					response.successfulUploads.length > 0
-				) {
-					// Update uploading state with document ID
-					setUploadingFiles((prev) =>
-						prev.map((f) =>
-							f.fileName === file.name
-								? {
-										...f,
-										documentId:
-											response.successfulUploads[0].id,
-								  }
-								: f
-						)
-					);
-
-					// Refresh documents list using documents-only endpoint
+				if (processResponse.data?.document) {
+					// Refresh documents list
 					const data = await apiRequest<{
 						data: {
 							documents: Document[];
@@ -306,28 +372,12 @@ export default function Sidebar() {
 					currentDocCount = data.data.documents.length;
 
 					// Auto-select newly uploaded document
-					response.successfulUploads.forEach((upload) => {
-						addDoc(upload.id);
-					});
-				}
-
-				// Handle failed upload from backend
-				if (
-					response.failedUploads &&
-					response.failedUploads.length > 0
-				) {
-					response.failedUploads.forEach((failed) => {
-						toast.error(
-							`${failed.name}: ${
-								failed.reason || 'Upload failed'
-							}`
-						);
-					});
+					addDoc(processResponse.data.document.id);
 				}
 			} catch (error: unknown) {
 				console.error(`Error uploading ${file.name}:`, error);
 
-				// Check if it's a network error
+				// Determine which step failed for better error messages
 				if (
 					error instanceof TypeError &&
 					error.message === 'Failed to fetch'
@@ -335,6 +385,20 @@ export default function Sidebar() {
 					toast.error(
 						'Please check your internet connection and try again'
 					);
+				} else if (
+					error instanceof Error &&
+					error.message === 'Failed to upload to S3'
+				) {
+					toast.error(`${file.name}: Failed to upload file`);
+				} else if (error instanceof Error) {
+					// Check if it's a processing error (step 3)
+					if (documentId) {
+						toast.error(
+							`${file.name}: Processing failed. Please try again.`
+						);
+					} else {
+						toast.error(`${file.name}: Upload failed`);
+					}
 				} else {
 					toast.error('Failed to upload files');
 				}
@@ -544,10 +608,19 @@ export default function Sidebar() {
 								<div className="w-4 h-4 flex items-center justify-center">
 									<LoaderCircle className="size-4 animate-spin text-primary" />
 								</div>
-								<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
-									{fileInfo.fileName?.split('.')[0] ||
-										fileInfo.fileName}
-								</p>
+								<div className="flex flex-col flex-1 overflow-hidden">
+									<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+										{fileInfo.fileName?.split('.')[0] ||
+											fileInfo.fileName}
+									</p>
+									<p className="text-muted-foreground font-sans text-xs">
+										{fileInfo.status === 'processing'
+											? 'Processing...'
+											: fileInfo.status === 'uploading'
+											? 'Uploading...'
+											: 'Preparing...'}
+									</p>
+								</div>
 								<Button
 									variant={'ghost'}
 									size={'sm'}
@@ -642,18 +715,33 @@ export default function Sidebar() {
 								const isSelected = selectedDocs.includes(
 									file.id
 								);
+								const isRemoving = removingFiles.includes(
+									file.id
+								);
+								const isAnyRemoving = removingFiles.length > 0;
 								return (
 									<div
 										key={file.id}
 										className="flex flex-row h-fit w-full rounded-md justify-start items-center gap-3 bg-[#252525] p-0.5 px-2"
 									>
-										<Checkbox
-											checked={isSelected}
-											onCheckedChange={() =>
-												toggleDoc(file.id)
-											}
-											className="border-secondary-lighter rounded-none data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-										/>
+										{isRemoving ? (
+											<div className="w-4 h-4 flex items-center justify-center">
+												<LoaderCircle className="size-4 animate-spin text-primary" />
+											</div>
+										) : (
+											<Checkbox
+												checked={isSelected}
+												onCheckedChange={() =>
+													toggleDoc(file.id)
+												}
+												disabled={isAnyRemoving}
+												className={`border-secondary-lighter rounded-none data-[state=checked]:bg-primary data-[state=checked]:border-primary ${
+													isAnyRemoving
+														? 'opacity-50 cursor-not-allowed'
+														: ''
+												}`}
+											/>
+										)}
 										<p className="text-foreground font-sans text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1">
 											{file.fileName?.split('.')[0] ||
 												file.fileName}
@@ -661,10 +749,16 @@ export default function Sidebar() {
 										<Button
 											variant={'ghost'}
 											size={'sm'}
-											className="text-red-500/30 hover:text-red-500 cursor-pointer p-0!"
+											className={`text-red-500/30 hover:text-red-500 cursor-pointer p-0! ${
+												isAnyRemoving
+													? 'opacity-50 cursor-not-allowed'
+													: ''
+											}`}
 											onClick={() =>
+												!isAnyRemoving &&
 												handleRemoveFile(file.id)
 											}
+											disabled={isAnyRemoving}
 										>
 											<IoMdRemove className="size-4" />
 										</Button>
@@ -675,13 +769,19 @@ export default function Sidebar() {
 												fileOpened
 													? 'text-primary'
 													: 'text-primary/30 hover:text-primary'
-											} cursor-pointer p-0!`}
+											} cursor-pointer p-0! ${
+												isAnyRemoving
+													? 'opacity-50 cursor-not-allowed'
+													: ''
+											}`}
 											onClick={() =>
+												!isAnyRemoving &&
 												handleOpenFile(
 													file.id,
 													file.fileName
 												)
 											}
+											disabled={isAnyRemoving}
 										>
 											<MdOutlineOpenInNew className="size-4 m-0!" />
 										</Button>

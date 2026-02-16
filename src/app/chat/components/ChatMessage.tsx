@@ -78,7 +78,10 @@ export const ChatMessage = ({
 		};
 
 		return (
-			<div className="max-w-[70%] self-start font-sans text-md text-foreground flex flex-col gap-2">
+			<div
+				id={`msg-${message.id}`}
+				className="max-w-[70%] self-start font-sans text-md text-foreground flex flex-col gap-2"
+			>
 				<div className="p-3 border-t-3 border-red-500/90 bg-red-500/2 flex items-center gap-3">
 					<div className="flex-1">{message.content}</div>
 					<Button
@@ -98,7 +101,10 @@ export const ChatMessage = ({
 	// User message
 	if (message.role === 'user') {
 		return (
-			<div className="max-w-[70%] self-end font-sans text-md text-foregrond flex flex-col gap-2 mt-4">
+			<div
+				id={`msg-${message.id}`}
+				className="max-w-[70%] self-end font-sans text-md text-foregrond flex flex-col gap-2 mt-4"
+			>
 				<div className="p-3 rounded-lg bg-background">
 					<MarkdownRenderer content={message.content} />
 				</div>
@@ -109,7 +115,10 @@ export const ChatMessage = ({
 	// Assistant message
 	const msg = message as Message;
 	return (
-		<div className="max-w-[100%] self-start font-sans text-md text-foregrond gap-2">
+		<div
+			id={`msg-${message.id}`}
+			className="max-w-[100%] self-start font-sans text-md text-foregrond gap-2"
+		>
 			<div className="p-2">
 				<MarkdownRenderer content={msg.content} />
 			</div>

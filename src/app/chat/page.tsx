@@ -6,9 +6,7 @@ export default function ChatPage() {
 	const router = useRouter();
 
 	useEffect(() => {
-		// Generate UUID and redirect on client side
-		const chatId = crypto.randomUUID();
-		router.replace(`/chat/${chatId}`);
+		router.replace('/chat/new');
 	}, [router]);
 
 	return null;

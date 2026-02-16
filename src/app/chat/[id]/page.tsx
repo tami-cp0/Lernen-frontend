@@ -18,12 +18,14 @@ const ExistingChatPage = () => {
 
 	// Use the chat context for chat creation only
 	const { actualChatId, chatCreated, createChatIfNeeded } = useChatContext();
-	
-	// For existing chats, ALWAYS use paramId directly (it changes immediately on navigation)
-	// Only use actualChatId for new chats that have been created
-	const chatId = isNewChat 
-		? (actualChatId || 'new')  // For new chat: use created ID if available, otherwise 'new'
-		: paramId;  // For existing chats: always use URL param directly
+
+	// Keep chatId stable during transitions:
+	// - For truly new chats (paramId='new' and no actualChatId), use 'new'
+	// - For newly created chats (was 'new', now has UUID), keep using the UUID from actualChatId
+	// - For existing chats, use paramId directly
+	const chatId = isNewChat
+		? actualChatId || 'new' // Use actualChatId if available (during/after creation), otherwise 'new'
+		: paramId;
 
 	const { selectedDocs, setSelectedDocs } = useSelectedDocs();
 	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
@@ -35,6 +37,9 @@ const ExistingChatPage = () => {
 	const [composerText, setComposerText] = useState('');
 	const [showMessages, setShowMessages] = useState(false);
 	const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+	const [hasUserSent, setHasUserSent] = useState(false);
+	const prevMessageCountRef = useRef(0);
+	const prevParamIdRef = useRef<string | null>(null);
 
 	// Custom hooks for state and logic
 	// Pass paramId as key to force hook reset on navigation
@@ -52,9 +57,20 @@ const ExistingChatPage = () => {
 	} = useChatMessages(chatId, isNewChat ? chatCreated : true);
 
 	// Reset visual state when navigating to a different chat
+	// BUT don't reset when transitioning from 'new' to UUID (chat creation)
 	useEffect(() => {
-		setShowMessages(false);
-		setHasScrolledToBottom(false);
+		const isCreatingNewChat =
+			prevParamIdRef.current === 'new' && paramId !== 'new';
+
+		if (!isCreatingNewChat && prevParamIdRef.current !== null) {
+			// Only reset if we're actually navigating to a different chat
+			setShowMessages(false);
+			setHasScrolledToBottom(false);
+			setHasUserSent(false);
+			prevMessageCountRef.current = 0;
+		}
+
+		prevParamIdRef.current = paramId;
 	}, [paramId]);
 
 	const { sendMessage, isSendingMessage } = useStreamingMessage({
@@ -74,25 +90,77 @@ const ExistingChatPage = () => {
 		setSelectedDocs([]);
 	}, [chatId, setSelectedFile, setSelectedDocs]);
 
-	// Auto-scroll to bottom when messages change or when sending starts
+	// Wrap sendMessage to track when the user sends a message
+	const handleSend = useCallback(
+		(text: string, messagesToRemove?: string[]) => {
+			setHasUserSent(true);
+			sendMessage(text, messagesToRemove);
+		},
+		[sendMessage]
+	);
+
+	// Scroll behavior:
+	// - On initial load of existing chat: scroll to bottom instantly, then reveal
+	// - When user sends a message: scroll so the new user message is at the TOP of the view, then stop
+	// - Do NOT follow streaming assistant response
 	useEffect(() => {
-		if (isSendingMessage) {
-			// Scroll to loading indicator when sending
-			loadingRef.current?.scrollIntoView({ behavior: 'smooth' });
-		} else if (messages.length > 0 && !isLoading && !hasScrolledToBottom) {
-			// First time messages load - scroll instantly to bottom without showing them
+		const messageCount = messages.length;
+		const isNewMessage = messageCount > prevMessageCountRef.current;
+		prevMessageCountRef.current = messageCount;
+
+		// Always show messages when we have any messages
+		if (messages.length > 0) {
+			setShowMessages(true);
+		}
+
+		if (messages.length > 0 && !isLoading && !hasScrolledToBottom) {
+			// First time messages load (existing chat) - scroll instantly to bottom
 			messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
 			setHasScrolledToBottom(true);
-			// Reveal messages after a brief delay
-			setTimeout(() => {
-				setShowMessages(true);
-			}, 50);
-		} else if (messages.length > 0 && hasScrolledToBottom) {
-			// Subsequent updates - smooth scroll and messages already visible
-			setShowMessages(true);
-			messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+		} else if (hasUserSent && isNewMessage) {
+			// User just sent a message
+			// Only scroll if content overflows AND the new message is not visible
+			const container = scrollContainerRef.current;
+			if (container && container.scrollHeight > container.clientHeight) {
+				// Container is overflowing - check if new message is visible
+				const lastUserMsg = [...messages]
+					.reverse()
+					.find((m) => m.role === 'user');
+				if (lastUserMsg) {
+					requestAnimationFrame(() => {
+						const el = document.getElementById(
+							`msg-${lastUserMsg.id}`
+						);
+						if (el && container) {
+							// Check if element is in the visible viewport
+							const rect = el.getBoundingClientRect();
+							const containerRect =
+								container.getBoundingClientRect();
+
+							// Element is visible if it's fully within the container's visible area
+							const isVisible =
+								rect.top >= containerRect.top &&
+								rect.bottom <= containerRect.bottom;
+
+							// Only scroll if the message is not visible
+							if (!isVisible) {
+								el.scrollIntoView({
+									behavior: 'instant',
+									block: 'start',
+								});
+							}
+						}
+					});
+				}
+			}
+			// Stop tracking - don't follow the streaming response
+			setHasUserSent(false);
+			// Mark as scrolled so we don't trigger the initial scroll logic
+			if (!hasScrolledToBottom) {
+				setHasScrolledToBottom(true);
+			}
 		}
-	}, [messages, isSendingMessage, isLoading, hasScrolledToBottom]);
+	}, [messages, isLoading, hasScrolledToBottom, hasUserSent]);
 
 	// Infinite scroll: load more messages when scrolling near the top
 	useEffect(() => {
@@ -126,9 +194,9 @@ const ExistingChatPage = () => {
 
 	const handleRetry = useCallback(
 		(originalMessage: string, messagesToRemove: string[]) => {
-			sendMessage(originalMessage, messagesToRemove);
+			handleSend(originalMessage, messagesToRemove);
 		},
-		[sendMessage]
+		[handleSend]
 	);
 
 	return (
@@ -151,10 +219,12 @@ const ExistingChatPage = () => {
 							</div>
 						</div>
 					)}
-					{isNewChat && (
-						<WelcomeScreen onHintClick={setComposerText} />
-					)}
-					{!isNewChat && showMessages && (
+					{isNewChat &&
+						messages.length === 0 &&
+						!isSendingMessage && (
+							<WelcomeScreen onHintClick={setComposerText} />
+						)}
+					{messages.length > 0 && (
 						<MessageList
 							messages={messages}
 							messageFeedback={messageFeedback}
@@ -175,7 +245,7 @@ const ExistingChatPage = () => {
 
 			{/* Sticky composer at bottom */}
 			<MessageComposer
-				onSend={sendMessage}
+				onSend={handleSend}
 				text={composerText}
 				setText={setComposerText}
 				isSending={isSendingMessage}
