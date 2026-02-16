@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * LoadingIndicator Component
@@ -12,17 +12,13 @@ import { useState, useEffect, forwardRef } from 'react';
  * - Text changes over time: "Thinking" → "Retrieving context" → "Curating response" → "Checking the time"
  * - Pulsing text animation for visual interest
  * - Returns null when not loading (unmounts from DOM)
- * - Accepts ref for scroll targeting
  */
 
 type LoadingIndicatorProps = {
 	isLoading: boolean; // Controls visibility and animation
 };
 
-export const LoadingIndicator = forwardRef<
-	HTMLDivElement,
-	LoadingIndicatorProps
->(({ isLoading }, ref) => {
+export const LoadingIndicator = ({ isLoading }: LoadingIndicatorProps) => {
 	// State for the cycling loading text
 	const [text, setText] = useState('Thinking');
 
@@ -51,7 +47,7 @@ export const LoadingIndicator = forwardRef<
 	if (!isLoading) return null;
 
 	return (
-		<div ref={ref} className="max-w-[78%] self-start">
+		<div className="max-w-[78%] self-start">
 			<div className="p-3 rounded-lg flex items-center gap-2">
 				{/* From Uiverse.io by elijahgummer */}
 				<div className="pinwheel">
@@ -81,6 +77,4 @@ export const LoadingIndicator = forwardRef<
 			</div>
 		</div>
 	);
-});
-
-LoadingIndicator.displayName = 'LoadingIndicator';
+};

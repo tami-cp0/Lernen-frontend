@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+	useState,
+	useEffect,
+	useLayoutEffect,
+	useCallback,
+	useRef,
+} from 'react';
 import { apiRequest } from '@/lib/api-client';
 import type { DisplayMessage } from '../components/ChatMessage';
 
@@ -40,30 +46,41 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 		Record<string, boolean | null>
 	>({});
 	// Track the previous chatId to detect transitions from 'new' to UUID
-	const prevChatIdRef = useRef<string>(chatId);
+	// Initialize to null so the first mount always triggers a fetch for existing chats
+	const prevChatIdRef = useRef<string | null>(null);
+	const hadOptimisticMessagesRef = useRef(false);
+
+	// Synchronously clear stale messages as soon as we enter /chat/new to avoid UI flash
+	useLayoutEffect(() => {
+		if (chatId === 'new') {
+			setMessages([]);
+			setChatTitle('');
+			setMessageFeedback({});
+			setHasMore(false);
+			setCurrentPage(1);
+			prevChatIdRef.current = 'new';
+		}
+	}, [chatId]);
 
 	// Fetch chat messages when chat is created
 	useEffect(() => {
-		// Skip fetching for 'new' chats - they have no messages yet
-		if (!chatCreated || chatId === 'new') {
-			// NEVER clear messages here - they might have been optimistically added
-			// Only reset if we're truly navigating to a new empty chat
-			if (prevChatIdRef.current !== chatId) {
-				setMessages([]);
-				setChatTitle('');
-				setMessageFeedback({});
-				setHasMore(false);
-				setCurrentPage(1);
-			}
+		// Handle "new" chat (no backend chat yet)
+		if (chatId === 'new' || !chatCreated) {
+			// Track whether we have optimistic messages in this new session
+			hadOptimisticMessagesRef.current = messages.length > 0;
 			setIsLoading(false);
-			prevChatIdRef.current = chatId;
+			prevChatIdRef.current = 'new';
 			return;
 		}
 
-		// If we're transitioning from 'new' to a UUID (chat just created),
-		// skip the fetch because messages were already optimistically added
-		if (prevChatIdRef.current === 'new' && chatId !== 'new') {
+		// We are on a real chatId (UUID)
+		const comingFromNew = prevChatIdRef.current === 'new';
+
+		// If we just created the chat from /new, NEVER fetch - messages are managed by useStreamingMessage
+		// This prevents race condition where effect runs before setMessages commits
+		if (comingFromNew) {
 			prevChatIdRef.current = chatId;
+			hadOptimisticMessagesRef.current = false;
 			setIsLoading(false);
 			return;
 		}
@@ -72,9 +89,6 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 		if (prevChatIdRef.current === chatId) {
 			return;
 		}
-
-		// Update previous chatId tracker
-		prevChatIdRef.current = chatId;
 
 		const fetchChatMessages = async () => {
 			try {
@@ -87,7 +101,6 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 				setIsLoading(true);
 
 				// Fetch messages with pagination - only get messages, not full chat data
-				// This is much more efficient than fetching entire chat with documents
 				const data = await apiRequest<{
 					data: {
 						messages: Array<{
@@ -111,7 +124,6 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 				setHasMore(data.data.hasMore || false);
 				setCurrentPage(1);
 
-				// Convert messages from turn format to DisplayMessage format
 				const convertedMessages: DisplayMessage[] =
 					data.data.messages.flatMap((msg) => [
 						{
@@ -134,7 +146,6 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 
 				setMessages(convertedMessages);
 
-				// Load existing feedback state
 				const feedbackState: Record<string, boolean | null> = {};
 				data.data.messages.forEach((msg) => {
 					if (msg.helpful !== null) {
@@ -142,20 +153,23 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 					}
 				});
 				setMessageFeedback(feedbackState);
+
+				prevChatIdRef.current = chatId;
 			} catch (error) {
-				// For new chats, it's normal to not find messages yet
 				const err = error as { response?: { status?: number } };
 				if (err?.response?.status === 404) {
 					setChatTitle('Chat');
 				} else {
 					console.error('Error fetching chat:', error);
 				}
+				prevChatIdRef.current = chatId;
 			} finally {
 				setIsLoading(false);
 			}
 		};
 
 		fetchChatMessages();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [chatId, chatCreated]);
 
 	// Load more messages when user scrolls to top (infinite scroll)

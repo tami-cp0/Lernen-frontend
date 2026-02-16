@@ -13,33 +13,17 @@ import { useChatContext } from '../context/ChatContext';
 
 const ExistingChatPage = () => {
 	const params = useParams();
-	const paramId = params.id as string;
-	const isNewChat = paramId === 'new';
+	const chatId = params.id as string;
+	const isNewChat = chatId === 'new';
 
-	// Use the chat context for chat creation only
-	const { actualChatId, chatCreated, createChatIfNeeded } = useChatContext();
-
-	// Keep chatId stable during transitions:
-	// - For truly new chats (paramId='new' and no actualChatId), use 'new'
-	// - For newly created chats (was 'new', now has UUID), keep using the UUID from actualChatId
-	// - For existing chats, use paramId directly
-	const chatId = isNewChat
-		? actualChatId || 'new' // Use actualChatId if available (during/after creation), otherwise 'new'
-		: paramId;
+	const { createChatIfNeeded } = useChatContext();
 
 	const { selectedDocs, setSelectedDocs } = useSelectedDocs();
 	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
 		useFileView();
 
-	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const loadingRef = useRef<HTMLDivElement>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const [composerText, setComposerText] = useState('');
-	const [showMessages, setShowMessages] = useState(false);
-	const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-	const [hasUserSent, setHasUserSent] = useState(false);
-	const prevMessageCountRef = useRef(0);
-	const prevParamIdRef = useRef<string | null>(null);
 
 	// Custom hooks for state and logic
 	// Pass paramId as key to force hook reset on navigation
@@ -47,31 +31,13 @@ const ExistingChatPage = () => {
 		messages,
 		setMessages,
 		chatTitle,
-		isLoading,
 		isLoadingMore,
 		hasMore,
 		loadMoreMessages,
 		messageFeedback,
 		handleHelpfulClick,
 		handleNotHelpfulClick,
-	} = useChatMessages(chatId, isNewChat ? chatCreated : true);
-
-	// Reset visual state when navigating to a different chat
-	// BUT don't reset when transitioning from 'new' to UUID (chat creation)
-	useEffect(() => {
-		const isCreatingNewChat =
-			prevParamIdRef.current === 'new' && paramId !== 'new';
-
-		if (!isCreatingNewChat && prevParamIdRef.current !== null) {
-			// Only reset if we're actually navigating to a different chat
-			setShowMessages(false);
-			setHasScrolledToBottom(false);
-			setHasUserSent(false);
-			prevMessageCountRef.current = 0;
-		}
-
-		prevParamIdRef.current = paramId;
-	}, [paramId]);
+	} = useChatMessages(chatId, !isNewChat);
 
 	const { sendMessage, isSendingMessage } = useStreamingMessage({
 		chatId,
@@ -90,77 +56,13 @@ const ExistingChatPage = () => {
 		setSelectedDocs([]);
 	}, [chatId, setSelectedFile, setSelectedDocs]);
 
-	// Wrap sendMessage to track when the user sends a message
+	// Keep a stable send handler for composer and retry actions
 	const handleSend = useCallback(
 		(text: string, messagesToRemove?: string[]) => {
-			setHasUserSent(true);
 			sendMessage(text, messagesToRemove);
 		},
 		[sendMessage]
 	);
-
-	// Scroll behavior:
-	// - On initial load of existing chat: scroll to bottom instantly, then reveal
-	// - When user sends a message: scroll so the new user message is at the TOP of the view, then stop
-	// - Do NOT follow streaming assistant response
-	useEffect(() => {
-		const messageCount = messages.length;
-		const isNewMessage = messageCount > prevMessageCountRef.current;
-		prevMessageCountRef.current = messageCount;
-
-		// Always show messages when we have any messages
-		if (messages.length > 0) {
-			setShowMessages(true);
-		}
-
-		if (messages.length > 0 && !isLoading && !hasScrolledToBottom) {
-			// First time messages load (existing chat) - scroll instantly to bottom
-			messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
-			setHasScrolledToBottom(true);
-		} else if (hasUserSent && isNewMessage) {
-			// User just sent a message
-			// Only scroll if content overflows AND the new message is not visible
-			const container = scrollContainerRef.current;
-			if (container && container.scrollHeight > container.clientHeight) {
-				// Container is overflowing - check if new message is visible
-				const lastUserMsg = [...messages]
-					.reverse()
-					.find((m) => m.role === 'user');
-				if (lastUserMsg) {
-					requestAnimationFrame(() => {
-						const el = document.getElementById(
-							`msg-${lastUserMsg.id}`
-						);
-						if (el && container) {
-							// Check if element is in the visible viewport
-							const rect = el.getBoundingClientRect();
-							const containerRect =
-								container.getBoundingClientRect();
-
-							// Element is visible if it's fully within the container's visible area
-							const isVisible =
-								rect.top >= containerRect.top &&
-								rect.bottom <= containerRect.bottom;
-
-							// Only scroll if the message is not visible
-							if (!isVisible) {
-								el.scrollIntoView({
-									behavior: 'instant',
-									block: 'start',
-								});
-							}
-						}
-					});
-				}
-			}
-			// Stop tracking - don't follow the streaming response
-			setHasUserSent(false);
-			// Mark as scrolled so we don't trigger the initial scroll logic
-			if (!hasScrolledToBottom) {
-				setHasScrolledToBottom(true);
-			}
-		}
-	}, [messages, isLoading, hasScrolledToBottom, hasUserSent]);
 
 	// Infinite scroll: load more messages when scrolling near the top
 	useEffect(() => {
@@ -170,20 +72,7 @@ const ExistingChatPage = () => {
 		const handleScroll = () => {
 			// Check if user scrolled to within 200px of the top
 			if (scrollContainer.scrollTop < 200 && hasMore && !isLoadingMore) {
-				// Store current scroll height before loading more
-				const previousScrollHeight = scrollContainer.scrollHeight;
-
-				loadMoreMessages().then(() => {
-					// After loading, maintain scroll position
-					// (prevent jumping to top when new messages are prepended)
-					requestAnimationFrame(() => {
-						const newScrollHeight = scrollContainer.scrollHeight;
-						const scrollDiff =
-							newScrollHeight - previousScrollHeight;
-						scrollContainer.scrollTop =
-							scrollContainer.scrollTop + scrollDiff;
-					});
-				});
+				void loadMoreMessages();
 			}
 		};
 
@@ -233,12 +122,7 @@ const ExistingChatPage = () => {
 							onRetry={handleRetry}
 						/>
 					)}
-					<LoadingIndicator
-						ref={loadingRef}
-						isLoading={isSendingMessage}
-					/>
-					{/* Scroll anchor */}
-					<div ref={messagesEndRef} /> {/* empty space */}
+					<LoadingIndicator isLoading={isSendingMessage} />
 					<div className="h-15 shrink-0"></div>
 				</div>
 			</section>

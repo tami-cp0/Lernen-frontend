@@ -8,7 +8,7 @@ import {
 	useRef,
 	useEffect,
 } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
 
 type ChatContextType = {
@@ -22,7 +22,6 @@ type ChatContextType = {
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-	const router = useRouter();
 	const pathname = usePathname();
 
 	// Extract chatId from pathname
@@ -45,27 +44,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 			setActualChatId(null);
 			setChatCreated(false);
 			isCreatingRef.current = false;
-		} else if (newPathnameId && newPathnameId !== actualChatId) {
+		} else if (newPathnameId) {
 			setActualChatId(newPathnameId);
 			setChatCreated(true);
 			isCreatingRef.current = false;
 		}
-	}, [pathname, actualChatId]);
+	}, [pathname]);
 
 	const createChatIfNeeded = useCallback(async (): Promise<string | null> => {
-		// If already have a valid chatId, return it
-		if (actualChatId && actualChatId !== 'new') {
-			return actualChatId;
+		// Always derive current route at call time to avoid stale closure values
+		const currentPathnameId =
+			pathname?.match(/\/chat\/([^\/]+)/)?.[1] || null;
+
+		// If we're not on /chat/new, return route chat id directly
+		if (currentPathnameId && currentPathnameId !== 'new') {
+			return currentPathnameId;
 		}
 
-		// If chat already created or currently creating, return existing ID
-		if (chatCreated || isCreatingRef.current) {
-			return actualChatId;
-		}
-
-		// Only create if we're on a 'new' chat
-		if (!isNewChat) {
-			return actualChatId;
+		// While on /chat/new, never reuse potentially stale previous chat IDs
+		if (isCreatingRef.current) {
+			return null;
 		}
 
 		isCreatingRef.current = true;
@@ -79,8 +77,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 			setActualChatId(newChatId);
 			setChatCreated(true);
 
-			// Update URL without triggering a full navigation
-			router.replace(`/chat/${newChatId}`, { scroll: false });
+			// Don't navigate yet - let the streaming complete first
+			// Navigation will happen after stream is done
 
 			// Dispatch event so Sidebar can refetch chats
 			window.dispatchEvent(
@@ -96,12 +94,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		} finally {
 			isCreatingRef.current = false;
 		}
-	}, [chatCreated, isNewChat, actualChatId, router]);
+	}, [pathname]);
 
 	return (
 		<ChatContext.Provider
 			value={{
-				actualChatId: actualChatId || pathnameId,
+				actualChatId: pathnameId === 'new' ? actualChatId : pathnameId,
 				setActualChatId,
 				chatCreated,
 				setChatCreated,

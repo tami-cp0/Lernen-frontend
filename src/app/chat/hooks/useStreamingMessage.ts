@@ -68,6 +68,21 @@ export const useStreamingMessage = ({
 	 * @param messagesToRemove - Optional array of message IDs to remove (used for retry to clear failed turn)
 	 */
 	const sendMessage = async (text: string, messagesToRemove?: string[]) => {
+		// Determine the actual chatId to use (may need to create chat first)
+		let actualChatId = chatId;
+
+		// If this is a new chat, create it FIRST before any UI changes
+		if (isNewChat && createChat) {
+			const newChatId = await createChat();
+			if (!newChatId) {
+				return; // Failed to create chat, abort
+			}
+			actualChatId = newChatId;
+
+			// Update URL without causing re-render
+			window.history.replaceState({}, '', `/chat/${newChatId}`);
+		}
+
 		// Add user message to UI IMMEDIATELY (before any async operations)
 		const userMsgId = 'user-' + Date.now();
 		const userMsg: Message = {
@@ -94,19 +109,7 @@ export const useStreamingMessage = ({
 		// Will hold the EventSource connection for SSE streaming
 		let eventSource: EventSource | null = null;
 
-		// Determine the actual chatId to use (may need to create chat first)
-		let actualChatId = chatId;
-
 		try {
-			// If this is a new chat, create it first
-			if (isNewChat && createChat) {
-				const newChatId = await createChat();
-				if (!newChatId) {
-					throw new Error('Failed to create chat');
-				}
-				actualChatId = newChatId;
-			}
-
 			// Build the request body with message and optional context
 			const requestBody: {
 				message: string;
@@ -198,7 +201,10 @@ export const useStreamingMessage = ({
 					if (updateTimeout) clearTimeout(updateTimeout);
 					eventSource?.close();
 					setIsSendingMessage(false);
-					return; // Done!
+
+					// Dispatch event for sidebar refresh
+					window.dispatchEvent(new CustomEvent('stream-complete'));
+					return;
 				}
 
 				// This is a text chunk - add it to our accumulated response
@@ -221,7 +227,7 @@ export const useStreamingMessage = ({
 					// Turn off loading indicator - first chunk received!
 					setIsSendingMessage(false);
 				} else {
-					// Debounce UI updates for smoother streaming (update every 30ms max)
+					// Debounce UI updates for smoother streaming (update every 10ms max)
 					if (!pendingUpdate) {
 						pendingUpdate = true;
 						updateTimeout = setTimeout(() => {
@@ -233,7 +239,7 @@ export const useStreamingMessage = ({
 								)
 							);
 							pendingUpdate = false;
-						}, 10);
+						}, 20);
 					}
 				}
 			};

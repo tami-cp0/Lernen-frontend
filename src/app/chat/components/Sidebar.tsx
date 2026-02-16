@@ -100,37 +100,33 @@ export default function Sidebar() {
 		}
 	}, []);
 
-	// Fetch chats on mount and when chat is created
+	// Fetch chats on mount and when stream completes
 	useEffect(() => {
 		fetchChats();
 
-		// Listen for chat-created events to refetch chats list
+		// Listen for chat-created to set current chat (for highlighting)
 		const handleChatCreated = (event: Event) => {
 			const customEvent = event as CustomEvent<{ chatId: string }>;
 			const newChatId = customEvent.detail?.chatId;
-
-			// Optimistically add the new chat to the list immediately
 			if (newChatId) {
-				setChats((prev) => [
-					{
-						id: newChatId,
-						title: 'Chat',
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					},
-					...prev,
-				]);
+				setCurrentChat(newChatId);
 			}
+		};
 
-			// Refetch after a delay to ensure backend has processed the creation
+		// Listen for stream-complete to refetch and get actual title
+		const handleStreamComplete = () => {
+			// Refetch after stream completes to get the generated title
 			setTimeout(() => {
 				fetchChats();
 			}, 300);
 		};
+
 		window.addEventListener('chat-created', handleChatCreated);
+		window.addEventListener('stream-complete', handleStreamComplete);
 
 		return () => {
 			window.removeEventListener('chat-created', handleChatCreated);
+			window.removeEventListener('stream-complete', handleStreamComplete);
 		};
 	}, [fetchChats]);
 
@@ -535,7 +531,6 @@ export default function Sidebar() {
 				</div>
 				<Button
 					onClick={() => {
-						// Navigate to 'new' - chat will be created when first message is sent or doc uploaded
 						router.push(`/chat/new`);
 					}}
 					variant={'outline'}
