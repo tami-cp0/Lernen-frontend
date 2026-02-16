@@ -21,7 +21,7 @@ export default function MessageComposer({
 	};
 
 	return (
-		<section className="fixed bottom-4 w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 border-0 rounded-[28px] bg-background/75 backdrop-blur-sm px-2 py-3 shadow-md z-50">
+		<section className="absolute bottom-4 w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 rounded-[28px] bg-background/75 backdrop-blur-sm px-2 py-3 shadow-md z-50">
 			<section className="w-full flex items-center gap-4">
 				<TextareaAutosize
 					value={text}
