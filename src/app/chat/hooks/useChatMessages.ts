@@ -28,7 +28,11 @@ import type { DisplayMessage } from '../components/ChatMessage';
  * @returns Object containing messages, chat title, loading state, pagination, and feedback handlers
  */
 
-export const useChatMessages = (chatId: string, chatCreated: boolean) => {
+export const useChatMessages = (
+	chatId: string,
+	chatCreated: boolean,
+	resetKey: number
+) => {
 	// State for all messages in the chat
 	const [messages, setMessages] = useState<DisplayMessage[]>([]);
 	// Chat title (generated from first message or "Chat" for new chats)
@@ -51,6 +55,8 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 	const hadOptimisticMessagesRef = useRef(false);
 
 	// Synchronously clear stale messages as soon as we enter /chat/new to avoid UI flash
+	// resetKey is incremented by ChatContext.resetChat() so this fires
+	// even when Next.js params haven't changed (e.g. after window.history.replaceState)
 	useLayoutEffect(() => {
 		if (chatId === 'new') {
 			setMessages([]);
@@ -60,7 +66,7 @@ export const useChatMessages = (chatId: string, chatCreated: boolean) => {
 			setCurrentPage(1);
 			prevChatIdRef.current = 'new';
 		}
-	}, [chatId]);
+	}, [chatId, resetKey]);
 
 	// Fetch chat messages when chat is created
 	useEffect(() => {

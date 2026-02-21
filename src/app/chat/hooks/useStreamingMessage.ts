@@ -56,10 +56,10 @@ export const useStreamingMessage = ({
 	 * Send a message and stream the AI response
 	 *
 	 * Flow:
-	 * 1. If new chat, create the chat first and get the new chatId
-	 * 2. Build request body with message and context (selected docs, current page)
-	 * 3. Create stream session on backend (Step 1)
-	 * 4. Add temporary messages to UI for optimistic rendering
+	 * 1. Add user message to UI immediately (optimistic update)
+	 * 2. If new chat, create the chat in background
+	 * 3. Build request body with message and context (selected docs, current page)
+	 * 4. Create stream session on backend (Step 1)
 	 * 5. Connect to SSE stream (Step 2)
 	 * 6. Update temp message as chunks arrive
 	 * 7. Replace temp messages with final messages on completion
@@ -68,22 +68,7 @@ export const useStreamingMessage = ({
 	 * @param messagesToRemove - Optional array of message IDs to remove (used for retry to clear failed turn)
 	 */
 	const sendMessage = async (text: string, messagesToRemove?: string[]) => {
-		// Determine the actual chatId to use (may need to create chat first)
-		let actualChatId = chatId;
-
-		// If this is a new chat, create it FIRST before any UI changes
-		if (isNewChat && createChat) {
-			const newChatId = await createChat();
-			if (!newChatId) {
-				return; // Failed to create chat, abort
-			}
-			actualChatId = newChatId;
-
-			// Update URL without causing re-render
-			window.history.replaceState({}, '', `/chat/${newChatId}`);
-		}
-
-		// Add user message to UI IMMEDIATELY (before any async operations)
+		// Add user message to UI IMMEDIATELY (optimistic update for instant feedback)
 		const userMsgId = 'user-' + Date.now();
 		const userMsg: Message = {
 			id: userMsgId,
@@ -103,8 +88,36 @@ export const useStreamingMessage = ({
 			setMessages((prev) => [...prev, userMsg]);
 		}
 
-		// Now start the loading indicator and async operations
+		// Start loading indicator immediately after showing user message
 		setIsSendingMessage(true);
+
+		// Determine the actual chatId to use (may need to create chat in background)
+		let actualChatId = chatId;
+
+		// If this is a new chat, create it in the background (non-blocking for UI)
+		if (isNewChat && createChat) {
+			const newChatId = await createChat();
+			if (!newChatId) {
+				// Failed to create chat - show error
+				setIsSendingMessage(false);
+				setMessages((prev) => [
+					...prev,
+					{
+						id: 'error-' + Date.now(),
+						content: 'Failed to create chat. Please try again.',
+						role: 'assistant',
+						type: 'error',
+						originalMessage: text,
+						userMessageId: userMsgId,
+					},
+				]);
+				return;
+			}
+			actualChatId = newChatId;
+
+			// Update URL without causing re-render
+			window.history.replaceState({}, '', `/chat/${newChatId}`);
+		}
 
 		// Will hold the EventSource connection for SSE streaming
 		let eventSource: EventSource | null = null;

@@ -69,7 +69,7 @@ export default function Sidebar() {
 	const { selectedFile, toggleFile } = useFileView();
 	const { selectedDocs, toggleDoc, addDoc } = useSelectedDocs();
 	const { isSidebarExpanded, setIsSidebarExpanded } = useSidebar();
-	const { createChatIfNeeded } = useChatContext();
+	const { createChatIfNeeded, resetChat } = useChatContext();
 	const [currentChat, setCurrentChat] = useState<string | null>(null);
 	const [chats, setChats] = useState<Chat[]>([]);
 	const { user } = useUser();
@@ -531,6 +531,7 @@ export default function Sidebar() {
 				</div>
 				<Button
 					onClick={() => {
+						resetChat();
 						router.push(`/chat/new`);
 					}}
 					variant={'outline'}

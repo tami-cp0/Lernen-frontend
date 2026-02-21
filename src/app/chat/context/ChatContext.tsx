@@ -17,6 +17,8 @@ type ChatContextType = {
 	chatCreated: boolean;
 	setChatCreated: (created: boolean) => void;
 	createChatIfNeeded: () => Promise<string | null>;
+	resetKey: number;
+	resetChat: () => void;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -33,6 +35,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 	);
 	const [chatCreated, setChatCreated] = useState(!isNewChat);
 	const isCreatingRef = useRef(false);
+	const [resetKey, setResetKey] = useState(0);
 
 	// Reset state when pathname changes
 	useEffect(() => {
@@ -96,6 +99,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		}
 	}, [pathname]);
 
+	// Reset chat state for "New Chat" — works even when Next.js
+	// thinks the route is already /chat/new (after window.history.replaceState)
+	const resetChat = useCallback(() => {
+		setActualChatId(null);
+		setChatCreated(false);
+		isCreatingRef.current = false;
+		setResetKey((k) => k + 1);
+
+		// Ensure the browser URL matches /chat/new regardless of
+		// any prior window.history.replaceState calls
+		if (window.location.pathname !== '/chat/new') {
+			window.history.replaceState({}, '', '/chat/new');
+		}
+	}, []);
+
 	return (
 		<ChatContext.Provider
 			value={{
@@ -104,6 +122,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 				chatCreated,
 				setChatCreated,
 				createChatIfNeeded,
+				resetKey,
+				resetChat,
 			}}
 		>
 			{children}

@@ -16,7 +16,7 @@ const ExistingChatPage = () => {
 	const chatId = params.id as string;
 	const isNewChat = chatId === 'new';
 
-	const { createChatIfNeeded } = useChatContext();
+	const { createChatIfNeeded, resetKey } = useChatContext();
 
 	const { selectedDocs, setSelectedDocs } = useSelectedDocs();
 	const { setSelectedFile, selectedFile, currentPage, pdfDocument } =
@@ -37,7 +37,7 @@ const ExistingChatPage = () => {
 		messageFeedback,
 		handleHelpfulClick,
 		handleNotHelpfulClick,
-	} = useChatMessages(chatId, !isNewChat);
+	} = useChatMessages(chatId, !isNewChat, resetKey);
 
 	const { sendMessage, isSendingMessage } = useStreamingMessage({
 		chatId,
