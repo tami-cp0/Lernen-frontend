@@ -25,8 +25,8 @@ export default function MessageComposer({
 
 	return (
 		<section
-			style={{ bottom: `${Math.max(keyboardOffset, 16)}px` }}
-			className="absolute w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 rounded-[28px] bg-background/75 backdrop-blur-sm px-2 py-3 shadow-md z-50 transition-[bottom] duration-150 ease-out md:bottom-4"
+			style={{ bottom: `${Math.max(keyboardOffset, 16) + 4}px` }}
+			className="absolute w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 rounded-[28px] bg-background/75 backdrop-blur-sm px-2 py-3 shadow-md z-50 md:bottom-4"
 		>
 			<section className="w-full flex items-center gap-4">
 				<TextareaAutosize
@@ -41,6 +41,7 @@ export default function MessageComposer({
 							document.getElementById('send-btn')!.click();
 						}
 					}}
+					style={{ height: 24 }}
 					className="resize-none z-2 flex-1 text-md md:text-md max-h-[200px] overflow-y-auto text-foreground placeholder:text-secondary-lighter focus:outline-none focus:ring-0 appearance-none mr-11 ml-2 hidden-scrollbar md:custom-scrollbar"
 				/>
 

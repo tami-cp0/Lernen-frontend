@@ -533,6 +533,12 @@ export default function Sidebar() {
 					onClick={() => {
 						resetChat();
 						router.push(`/chat/new`);
+						// Close sidebar on mobile when creating new chat
+						const isMobile =
+							window.matchMedia('(max-width: 767px)').matches;
+						if (isMobile) {
+							setIsSidebarExpanded(false);
+						}
 					}}
 					variant={'outline'}
 					className="hover:bg-background h-fit border-0 bg-background justify-start items-center px-0! my-0"

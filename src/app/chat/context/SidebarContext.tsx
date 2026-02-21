@@ -1,5 +1,11 @@
 'use client';
-import { createContext, useContext, useState, ReactNode } from 'react';
+import {
+	createContext,
+	useContext,
+	useState,
+	ReactNode,
+	useEffect,
+} from 'react';
 
 type SidebarContextType = {
 	isSidebarExpanded: boolean;
@@ -10,14 +16,15 @@ type SidebarContextType = {
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-	// Determine initial sidebar state based on screen size
-	// Sidebar is open by default on md screens and above (768px+)
-	const isBelowMd =
-		typeof window !== 'undefined' &&
-		!window.matchMedia('(min-width: 768px)').matches;
+	// Start with expanded (true) to match desktop default and avoid desktop flash
+	// Mobile devices will use CSS to handle initial state
+	const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 
-	// Sidebar is collapsed by default only on small screens (below md)
-	const [isSidebarExpanded, setIsSidebarExpanded] = useState(!isBelowMd);
+	// Update state based on actual screen size after mount
+	useEffect(() => {
+		const isBelowMd = !window.matchMedia('(min-width: 768px)').matches;
+		setIsSidebarExpanded(!isBelowMd);
+	}, []);
 
 	const toggleSidebar = () => {
 		setIsSidebarExpanded((prev) => !prev);
