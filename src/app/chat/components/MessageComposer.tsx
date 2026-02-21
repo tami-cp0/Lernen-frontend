@@ -2,6 +2,7 @@
 import React from 'react';
 import { MoveUp } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 
 export default function MessageComposer({
 	onSend,
@@ -14,6 +15,8 @@ export default function MessageComposer({
 	setText: (t: string) => void;
 	isSending: boolean;
 }) {
+	const keyboardOffset = useKeyboardOffset();
+
 	const handleClick = () => {
 		if (!text.trim() || isSending) return;
 		onSend(text);
@@ -21,7 +24,10 @@ export default function MessageComposer({
 	};
 
 	return (
-		<section className="absolute bottom-4 w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 rounded-[28px] bg-background/75 backdrop-blur-sm px-2 py-3 shadow-md z-50">
+		<section
+			style={{ bottom: `${Math.max(keyboardOffset, 16)}px` }}
+			className="absolute w-[85%] md:w-[78%] max-w-[1000px] flex flex-col items-start gap-4 rounded-[28px] bg-background/75 backdrop-blur-sm px-2 py-3 shadow-md z-50 transition-[bottom] duration-150 ease-out md:bottom-4"
+		>
 			<section className="w-full flex items-center gap-4">
 				<TextareaAutosize
 					value={text}
