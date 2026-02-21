@@ -10,6 +10,7 @@ import { LoadingIndicator } from '../components/LoadingIndicator';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useStreamingMessage } from '../hooks/useStreamingMessage';
 import { useChatContext } from '../context/ChatContext';
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 
 const ExistingChatPage = () => {
 	const params = useParams();
@@ -24,6 +25,7 @@ const ExistingChatPage = () => {
 
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const [composerText, setComposerText] = useState('');
+	const keyboardOffset = useKeyboardOffset();
 
 	// Custom hooks for state and logic
 	// Pass paramId as key to force hook reset on navigation
@@ -96,6 +98,7 @@ const ExistingChatPage = () => {
 			{/* Scrollable content area */}
 			<section
 				ref={scrollContainerRef}
+				style={{ paddingBottom: `${keyboardOffset}px` }}
 				className="overflow-y-auto flex-1 w-full flex justify-center hidden-scrollbar md:custom-scrollbar"
 			>
 				<div className="w-[90%] md:w-[78%] max-w-[1000px] flex flex-col gap-3">
