@@ -252,7 +252,7 @@ export const useStreamingMessage = ({
 								)
 							);
 							pendingUpdate = false;
-						}, 20);
+						}, 5);
 					}
 				}
 			};
