@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 		icon: '/favicon.svg',
 	},
 	description: 'The intelligent learning tech',
+
 };
 
 export default function RootLayout({

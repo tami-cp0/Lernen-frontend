@@ -1,21 +1,26 @@
-// import { Metadata } from "next";
+import type { Metadata } from 'next';
 
-// export const metadata: Metadata = {
-//   title: "Lernen",
-//   description: "<later>",
-//   icons: {
-//     icon: "/favicon.svg",
-//   },
-// };
-
-// design the card for twitter and linkedin
+export const metadata: Metadata = {
+	title: 'Lernen',
+	description: 'The intelligent learning tech',
+	icons: {
+		icon: '/favicon.svg',
+	},
+	openGraph: {
+		title: 'Lernen',
+		description: 'The intelligent learning tech',
+		images: ['/Abstract-Ripple-Effect.png'],
+	},
+	twitter: {
+		card: 'summary_large_image',
+		title: 'Lernen',
+		description: 'The intelligent learning tech',
+		images: ['/Abstract-Ripple-Effect.png'],
+	},
+};
 
 export default function Home() {
-  return (
-    <div>
-      hello
-    </div>
-  );
+	return <div>hello</div>;
 }
 
 // check if pdf is correct first
