@@ -240,6 +240,9 @@ export default function Sidebar() {
 				return;
 			}
 			chatId = newChatId;
+
+			// Update URL without causing re-render
+			window.history.replaceState({}, '', `/chat/${newChatId}`);
 		}
 
 		if (!chatId) {
