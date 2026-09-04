@@ -372,6 +372,12 @@ export default function Sidebar() {
 
 					// Auto-select newly uploaded document
 					addDoc(processResponse.data.document.id);
+
+					// Remove from uploading state now that the real document is rendered,
+					// instead of waiting for `finally`, to avoid a brief duplicate entry
+					setUploadingFiles((prev) =>
+						prev.filter((f) => f.fileName !== file.name)
+					);
 				}
 			} catch (error: unknown) {
 				console.error(`Error uploading ${file.name}:`, error);
